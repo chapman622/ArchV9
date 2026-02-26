@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <title>Arch Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <script src="https://www.unpkg.com/alt1/dist/base/index.js"></script>
+  <script src="https://www.unpkg.com/alt1/dist/ocr/index.js"></script>
+  <script src="https://www.unpkg.com/alt1/dist/chatbox/index.js"></script>
+  <style>
+    :root {
+      --bg: #0c0b09; --surface: #141210; --surface2: #1c1a14;
+      --border: #2e2618; --border2: #3d3220; --accent: #c8952a;
+      --accent2: #8fbf6a; --accent3: #5ba8d4; --dim: #6b5b3e;
+      --text: #e8dcc8; --muted: #7a6a50; --danger: #bf4a3a;
+      --zarosian: #9b59b6; --zamorakian: #c0392b; --saradominist: #2980b9;
+      --armadylean: #27ae60; --bandosian: #d35400; --dragonkin: #c0006a; --agnostic: #7f8c8d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 11px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { background: linear-gradient(135deg, #1a1510, #221c12, #1a1510); border-bottom: 1px solid var(--accent); padding: 5px 9px; display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    header h1 { font-family: 'Cinzel', serif; font-size: 13px; color: var(--accent); letter-spacing: .08em; flex: 1; }
+    .badge { font-size: 9px; color: var(--muted); border: 1px solid var(--border2); padding: 1px 5px; border-radius: 2px; }
+    .badge.ok { color: var(--accent2); border-color: var(--accent2); }
+    .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .tab { flex: 1; padding: 5px 0; text-align: center; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all .15s; font-size: 9px; letter-spacing: .05em; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .toolbar { display: flex; gap: 4px; padding: 4px 7px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; align-items: center; flex-wrap: wrap; }
+    .toolbar input[type=text], .toolbar input[type=number] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 5px; font-family: inherit; font-size: 10px; border-radius: 2px; }
+    .toolbar input:focus { outline: none; border-color: var(--accent); }
+    select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 4px; font-family: inherit; font-size: 10px; border-radius: 2px; }
+    .f1 { flex: 1; min-width: 70px; }
+    .btn { background: var(--border); border: 1px solid var(--border2); color: var(--text); padding: 3px 7px; font-family: inherit; font-size: 10px; cursor: pointer; border-radius: 2px; transition: background .1s; white-space: nowrap; }
+    .btn:hover { background: var(--border2); }
+    .btn.pri { background: #2e2008; border-color: var(--accent); color: var(--accent); }
+    .btn.pri:hover { background: #3e2e0c; }
+    .btn.suc { background: #0d2008; border-color: var(--accent2); color: var(--accent2); }
+    .btn.suc:hover { background: #1a3010; }
+    .btn.dan { background: #200808; border-color: var(--danger); color: var(--danger); }
+    .btn-xs { background: var(--border); border: none; color: var(--text); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 2px; font-size: 13px; line-height: 1; flex-shrink: 0; }
+    .btn-xs:hover { background: var(--dim); }
+    .panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+    .panel.active { display: flex; }
+    .scroll { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+    .scroll::-webkit-scrollbar { width: 4px; }
+    .scroll::-webkit-scrollbar-track { background: var(--bg); }
+    .scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: var(--surface); color: var(--muted); font-size: 9px; padding: 4px 6px; text-align: left; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border); letter-spacing: .06em; }
+    tbody tr { border-bottom: 1px solid #18160f; }
+    tbody tr:nth-child(even) { background: #0f0d09; }
+    tbody tr:hover { background: #1a1810; }
+    td { padding: 3px 6px; vertical-align: middle; }
+    .cdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    .mn { display: flex; align-items: center; gap: 5px; }
+    .cc { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+    .ci { width: 50px; background: var(--bg); border: 1px solid var(--accent); color: var(--accent); text-align: right; font-family: inherit; font-size: 10px; padding: 1px 3px; border-radius: 2px; }
+    .ci:focus { outline: none; }
+    .gi { width: 50px; background: var(--bg); border: 1px solid var(--border); color: var(--text); text-align: right; font-family: inherit; font-size: 10px; padding: 1px 3px; border-radius: 2px; }
+    .gi:focus { outline: none; border-color: var(--accent); }
+    .pw { width: 46px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .pb { height: 100%; border-radius: 2px; transition: width .3s; }
+    .pb.low { background: var(--danger); } .pb.mid { background: var(--accent); } .pb.full { background: var(--accent2); }
+    .art-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; margin: 5px; padding: 7px; }
+    .art-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+    .art-name { font-family: 'Cinzel', serif; font-size: 11px; color: var(--accent); flex: 1; }
+    .art-lvl { font-size: 9px; color: var(--muted); background: var(--border); padding: 1px 5px; border-radius: 2px; }
+    .art-xp { font-size: 9px; color: var(--accent3); }
+    .mr { display: flex; align-items: center; gap: 5px; padding: 2px 0; font-size: 10px; }
+    .mr .need { color: var(--muted); margin-left: auto; white-space: nowrap; }
+    .mr .have { font-weight: bold; }
+    .mr.ok .have { color: var(--accent2); } .mr.bad .have { color: var(--danger); }
+    .art-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 4px; border-top: 1px solid var(--border); }
+    .art-can { color: var(--accent2); font-size: 10px; } .art-cant { color: var(--danger); font-size: 10px; }
+    .site-hdr { background: var(--surface); padding: 4px 8px; font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent2); border-bottom: 1px solid var(--border); letter-spacing: .08em; position: sticky; top: 0; z-index: 1; }
+    .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 7px; }
+    .sc { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 7px; }
+    .sc h3 { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); margin-bottom: 5px; }
+    .sr { display: flex; justify-content: space-between; padding: 2px 0; font-size: 10px; border-bottom: 1px solid var(--border); }
+    .sr:last-child { border-bottom: none; }
+    .sv { color: var(--accent); } .sw { grid-column: 1 / -1; }
+    .oa { padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+    .op { background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 6px; min-height: 60px; font-size: 10px; color: var(--text); white-space: pre-wrap; font-family: inherit; overflow-y: auto; max-height: 150px; }
+    .oh { color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .status-bar { background: var(--surface); border-top: 1px solid var(--border); padding: 3px 9px; font-size: 9px; color: var(--muted); display: flex; gap: 10px; flex-shrink: 0; }
+    .status-bar span { color: var(--text); }
+    .legend { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 7px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .li { display: flex; align-items: center; gap: 3px; font-size: 9px; color: var(--muted); }
+    textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 10px; padding: 6px; border-radius: 3px; resize: vertical; min-height: 60px; }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    .tin { width: 42px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 2px 3px; font-family: inherit; font-size: 9px; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏛 Arch Tracker</h1>
+    <div class="badge" id="alt1-badge">Alt1 not detected</div>
+  </header>
+  <div class="tabs">
+    <div class="tab active" data-tab="inv">MATS</div>
+    <div class="tab" data-tab="art">ARTEFACTS</div>
+    <div class="tab" data-tab="sess">SESSION</div>
+    <div class="tab" data-tab="ocr">OCR</div>
+  </div>
+  <div class="panel active" id="panel-inv">
+    <div class="toolbar">
+      <input type="text" id="search-box" class="f1" placeholder="Search..."/>
+      <select id="filter-culture">
+        <option value="">All cultures</option>
+        <option>Agnostic</option><option>Zarosian</option><option>Zamorakian</option>
+        <option>Saradominist</option><option>Armadylean</option><option>Bandosian</option><option>Dragonkin</option>
+      </select>
+      <button class="btn dan" id="btn-reset-all">Reset</button>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr>
+        <th>Material</th><th style="text-align:center;width:24px">Lv</th>
+        <th style="text-align:right">Have</th><th style="text-align:right;width:56px">Goal</th>
+        <th style="text-align:right;width:56px">Prog</th>
+      </tr></thead>
+      <tbody id="mat-tbody"></tbody>
+    </table></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="panel" id="panel-art">
+    <div class="toolbar">
+      <input type="text" id="art-search" class="f1" placeholder="Search artefacts..."/>
+      <select id="art-site">
+        <option value="">All sites</option>
+        <option>Kharid-et</option><option>Infernal Source</option><option>Everlight</option>
+        <option>Stormguard Citadel</option><option>Warforge</option>
+        <option>Daemonheim</option><option>Orthen</option><option>Senntisten</option>
+      </select>
+      <select id="art-filter">
+        <option value="">All</option><option value="can">Can restore</option><option value="cant">Missing mats</option>
+      </select>
+    </div>
+    <div class="scroll" id="art-scroll"></div>
+  </div>
+  <div class="panel" id="panel-sess">
+    <div class="toolbar">
+      <button class="btn suc" id="btn-sess-start">▶ Start Session</button>
+      <button class="btn dan" id="btn-sess-reset">✖ Reset</button>
+      <span style="color:var(--muted);margin-left:auto;font-size:10px" id="sess-timer">00:00:00</span>
+    </div>
+    <div class="scroll"><div class="sg">
+      <div class="sc sw"><h3>SESSION STATS</h3>
+        <div class="sr"><span>Elapsed</span><span class="sv" id="s-time">--</span></div>
+        <div class="sr"><span>Artefacts restored</span><span class="sv" id="s-arts">0</span></div>
+        <div class="sr"><span>XP gained (est.)</span><span class="sv" id="s-xp">0</span></div>
+        <div class="sr"><span>XP/hr (est.)</span><span class="sv" id="s-xphr">--</span></div>
+      </div>
+      <div class="sc sw"><h3>MATERIAL GAINS</h3>
+        <div id="sess-mat-list" style="font-size:10px;color:var(--muted)">Start a session to track gains.</div>
+      </div>
+      <div class="sc sw"><h3>LOG RESTORED ARTEFACT</h3>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px" id="art-log-btns"></div>
+        <div style="font-size:9px;color:var(--muted)" id="recent-restores"></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="panel" id="panel-ocr">
+    <div class="oa">
+      <p class="oh">
+        1. Open Material Storage in RS3 and scroll to TOP<br>
+        2. Set window coordinates, Validate alignment<br>
+        3. Tuners → Preview Top Boxes — blue should surround icons, green cover numbers<br>
+        4. Adjust until perfect, then Scan Top<br>
+        5. Scroll down until Dragonkin visible → Scan Bottom<br>
+        6. Review detected values, then Apply to Inventory
+      </p>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="btn-locate">📍 Locate Window</button>
+        <span id="locate-status" style="font-size:9px;color:var(--muted)">Window not set</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn pri" id="btn-scan-top">📸 Scan Top</button>
+        <button class="btn pri" id="btn-scan-bottom">📸 Scan Bottom</button>
+        <button class="btn" id="btn-manual-ocr">✏ Manual Paste</button>
+      </div>
+      <div id="tuner-wrap" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:6px">
+        <div style="font-size:9px;color:var(--accent);margin-bottom:4px">OFFSET TUNERS — adjust until blue boxes surround icons & green covers quantity numbers</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:9px;color:var(--muted);margin-bottom:4px">
+          offX:<input class="tin" id="t-ox" type="number" value="10">
+          offY (top):<input class="tin" id="t-oy" type="number" value="66">
+          offY (bottom):<input class="tin" id="t-oy2" type="number" value="78">
+          step (horiz):<input class="tin" id="t-step" type="number" value="46">
+          row (vert):<input class="tin" id="t-row" type="number" value="70">
+          icon px:<input class="tin" id="t-icon" type="number" value="42">
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn suc" id="t-rescan" style="font-size:9px;padding:2px 5px">▶ Re-Scan Top</button>
+          <button class="btn suc" id="t-rescan-bot" style="font-size:9px;padding:2px 5px">▶ Re-Scan Bottom</button>
+          <button class="btn" id="t-preview-top" style="font-size:9px;padding:2px 5px">👁 Preview Top Boxes</button>
+          <button class="btn" id="t-preview-bot" style="font-size:9px;padding:2px 5px">👁 Preview Bottom Boxes</button>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px">Blue = icon area. Green = number read zone. Tune until aligned.</div>
+      </div>
+      <textarea id="paste-box" placeholder="Paste material text here..." style="display:none"></textarea>
+      <button class="btn" id="btn-parse-paste" style="display:none">Parse Text</button>
+      <div class="op" id="ocr-out">No scan yet.</div>
+      <div id="ocr-results" style="display:none">
+        <div style="color:var(--accent2);font-size:10px;margin-bottom:4px" id="ocr-summary"></div>
+        <div id="ocr-match-list" style="font-size:10px;max-height:100px;overflow-y:auto;margin-bottom:6px"></div>
+        <div style="display:flex;gap:5px">
+          <button class="btn suc" id="btn-ocr-apply">✔ Apply to Inventory</button>
+          <button class="btn" id="btn-ocr-discard">✖ Discard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div>Total: <span id="s-total">0</span></div>
+    <div>Types: <span id="s-types">0</span></div>
+    <div>Goals: <span id="s-goals">0/0</span></div>
+    <div>Can restore: <span id="s-canrest">0</span></div>
+  </div>
+  <script>
+    const CULTURE_COL = {
+      Agnostic:"#7f8c8d", Zarosian:"#9b59b6", Zamorakian:"#c0392b",
+      Saradominist:"#2980b9", Armadylean:"#27ae60", Bandosian:"#d35400",
+      Dragonkin:"#c0006a", Unknown:"#888888"
+    };
+    const MATS = [
+      {name:"Third Age iron",lv:5,c:"Agnostic"},{name:"Zarosian insignia",lv:5,c:"Zarosian"},
+      {name:"Samite silk",lv:12,c:"Agnostic"},{name:"Imperial steel",lv:12,c:"Zarosian"},
+      {name:"White oak",lv:17,c:"Agnostic"},{name:"Goldrune",lv:20,c:"Agnostic"},
+      {name:"Orthenglass",lv:20,c:"Agnostic"},{name:"Vellum",lv:24,c:"Agnostic"},
+      {name:"Cadmium red",lv:24,c:"Zamorakian"},{name:"Ancient vis",lv:25,c:"Zarosian"},
+      {name:"Tyrian purple",lv:25,c:"Zarosian"},{name:"Leather scraps",lv:29,c:"Agnostic"},
+      {name:"Chaotic brimstone",lv:29,c:"Zamorakian"},{name:"Demonhide",lv:29,c:"Zamorakian"},
+      {name:"Eye of Dagon",lv:36,c:"Zamorakian"},{name:"Hellfire metal",lv:36,c:"Zamorakian"},
+      {name:"Keramos",lv:42,c:"Saradominist"},{name:"White marble",lv:42,c:"Saradominist"},
+      {name:"Cobalt blue",lv:48,c:"Saradominist"},{name:"Everlight silvthril",lv:51,c:"Saradominist"},
+      {name:"Star of Saradomin",lv:51,c:"Saradominist"},{name:"Blood of Orcus",lv:58,c:"Zarosian"},
+      {name:"Soapstone",lv:60,c:"Agnostic"},{name:"Stormguard steel",lv:70,c:"Armadylean"},
+      {name:"Wings of War",lv:70,c:"Armadylean"},{name:"Dragon metal",lv:73,c:"Dragonkin"},
+      {name:"Orgone",lv:73,c:"Dragonkin"},{name:"Animal furs",lv:76,c:"Agnostic"},
+      {name:"Armadylean yellow",lv:76,c:"Armadylean"},{name:"Malachite green",lv:76,c:"Bandosian"},
+      {name:"Mark of the Kyzaj",lv:76,c:"Bandosian"},{name:"Vulcanised rubber",lv:76,c:"Bandosian"},
+      {name:"Plate of the Crucible",lv:76,c:"Bandosian"},{name:"Zaryte fragments",lv:81,c:"Zarosian"},
+      {name:"Praesulic essence (melee)",lv:87,c:"Zarosian"},{name:"Praesulic essence (ranged)",lv:87,c:"Zarosian"},
+      {name:"Praesulic essence (magic)",lv:87,c:"Zarosian"},{name:"Quintessence",lv:87,c:"Dragonkin"},
+      {name:"Imbued slate",lv:90,c:"Dragonkin"},{name:"Warforged bronze",lv:93,c:"Bandosian"},
+    ];
+    const ARTEFACTS = [
+      {name:"Centurion's dress sword",site:"Kharid-et",lv:5,xp:500,mats:{"Third Age iron":16,"Zarosian insignia":14}},
+      {name:"Legionary sword",site:"Kharid-et",lv:5,xp:500,mats:{"Third Age iron":20,"Zarosian insignia":10}},
+      {name:"Zarosian chalice",site:"Kharid-et",lv:12,xp:1000,mats:{"Third Age iron":20,"Samite silk":14,"Zarosian insignia":12}},
+      {name:"Zarosian statuette",site:"Kharid-et",lv:12,xp:1000,mats:{"Samite silk":20,"Imperial steel":14,"Zarosian insignia":12}},
+      {name:"Zarosian coin",site:"Kharid-et",lv:17,xp:1600,mats:{"Third Age iron":22,"White oak":18,"Imperial steel":16}},
+      {name:"Zarosian prayer bead",site:"Kharid-et",lv:17,xp:1600,mats:{"Samite silk":24,"Zarosian insignia":18,"White oak":14}},
+      {name:"Venator's longbow",site:"Kharid-et",lv:20,xp:2200,mats:{"White oak":28,"Goldrune":16,"Third Age iron":12}},
+      {name:"Centurion's cuirass",site:"Kharid-et",lv:20,xp:2200,mats:{"Imperial steel":30,"Goldrune":18,"Third Age iron":10}},
+      {name:"Zarosian legionary outfit",site:"Kharid-et",lv:25,xp:3200,mats:{"Samite silk":28,"Ancient vis":16,"Tyrian purple":12}},
+      {name:"Zarosian prayer scroll",site:"Kharid-et",lv:25,xp:3200,mats:{"Vellum":24,"Ancient vis":18,"Zarosian insignia":14}},
+      {name:"Pontifex signet ring",site:"Kharid-et",lv:40,xp:5400,mats:{"Goldrune":30,"Blood of Orcus":20,"Tyrian purple":18}},
+      {name:"Kharid-et journal",site:"Kharid-et",lv:58,xp:9000,mats:{"Blood of Orcus":28,"Ancient vis":22,"Tyrian purple":16}},
+      {name:"Camel mask",site:"Infernal Source",lv:24,xp:2000,mats:{"Leather scraps":22,"Cadmium red":14,"Demonhide":12}},
+      {name:"Demonic skull",site:"Infernal Source",lv:29,xp:2800,mats:{"Demonhide":24,"Chaotic brimstone":16,"Eye of Dagon":12}},
+      {name:"Ritual candle",site:"Infernal Source",lv:29,xp:2800,mats:{"Hellfire metal":22,"Cadmium red":16,"Chaotic brimstone":14}},
+      {name:"Zamorakian pendant",site:"Infernal Source",lv:36,xp:3800,mats:{"Eye of Dagon":26,"Hellfire metal":18,"Cadmium red":14}},
+      {name:"Zamorakian sigil",site:"Infernal Source",lv:36,xp:3800,mats:{"Hellfire metal":28,"Chaotic brimstone":20,"Demonhide":12}},
+      {name:"Infernal staff",site:"Infernal Source",lv:42,xp:5000,mats:{"Hellfire metal":30,"Eye of Dagon":22,"Cadmium red":18}},
+      {name:"Demon cook book",site:"Infernal Source",lv:42,xp:5000,mats:{"Leather scraps":26,"Demonhide":20,"Cadmium red":16}},
+      {name:"Hallowed lantern",site:"Everlight",lv:42,xp:4600,mats:{"Keramos":28,"White marble":20,"Cobalt blue":14}},
+      {name:"Saradomin icon",site:"Everlight",lv:42,xp:4600,mats:{"White marble":26,"Keramos":18,"Cobalt blue":16}},
+      {name:"Amphora",site:"Everlight",lv:48,xp:6000,mats:{"Keramos":34,"Cobalt blue":22,"White marble":14}},
+      {name:"Saradominist statuette",site:"Everlight",lv:51,xp:7200,mats:{"Everlight silvthril":30,"Star of Saradomin":20,"White marble":16}},
+      {name:"Light box",site:"Everlight",lv:51,xp:7200,mats:{"Everlight silvthril":28,"Cobalt blue":22,"Keramos":16}},
+      {name:"Legionary's shield",site:"Everlight",lv:58,xp:9200,mats:{"Everlight silvthril":36,"Star of Saradomin":24,"Blood of Orcus":16}},
+      {name:"Saradomin's light",site:"Everlight",lv:60,xp:10000,mats:{"Star of Saradomin":30,"Everlight silvthril":26,"Cobalt blue":18}},
+      {name:"Stormguard journal",site:"Stormguard Citadel",lv:70,xp:11000,mats:{"Stormguard steel":32,"Wings of War":24,"Armadylean yellow":16}},
+      {name:"Armadylean device",site:"Stormguard Citadel",lv:70,xp:11000,mats:{"Wings of War":30,"Stormguard steel":26,"Armadylean yellow":18}},
+      {name:"Wingsuit v1",site:"Stormguard Citadel",lv:70,xp:11500,mats:{"Stormguard steel":28,"Wings of War":22,"Armadylean yellow":20}},
+      {name:"Howl's workshop notes",site:"Stormguard Citadel",lv:76,xp:14000,mats:{"Stormguard steel":38,"Wings of War":28,"Armadylean yellow":20}},
+      {name:"Bandosian goblin totem",site:"Warforge",lv:76,xp:12500,mats:{"Malachite green":30,"Mark of the Kyzaj":22,"Vulcanised rubber":16}},
+      {name:"Goblin keg",site:"Warforge",lv:76,xp:12500,mats:{"Vulcanised rubber":28,"Malachite green":24,"Mark of the Kyzaj":14}},
+      {name:"Warforge barricade",site:"Warforge",lv:76,xp:12500,mats:{"Plate of the Crucible":30,"Malachite green":22,"Mark of the Kyzaj":16}},
+      {name:"Big High War God idol",site:"Warforge",lv:81,xp:16000,mats:{"Mark of the Kyzaj":34,"Malachite green":26,"Zaryte fragments":16}},
+      {name:"Warforged weapon",site:"Warforge",lv:93,xp:22000,mats:{"Warforged bronze":36,"Plate of the Crucible":24,"Malachite green":18}},
+      {name:"Dungeoneering journal",site:"Daemonheim",lv:58,xp:8000,mats:{"Blood of Orcus":28,"Soapstone":22,"Orthenglass":14}},
+      {name:"Dragonkin relic",site:"Orthen",lv:73,xp:13000,mats:{"Dragon metal":34,"Orgone":24,"Quintessence":16}},
+      {name:"Dragonkin codex",site:"Orthen",lv:73,xp:13000,mats:{"Dragon metal":30,"Quintessence":22,"Imbued slate":14}},
+      {name:"Orthen furnace core",site:"Orthen",lv:87,xp:20000,mats:{"Quintessence":36,"Imbued slate":28,"Dragon metal":20}},
+      {name:"Dragonkin laboratory notes",site:"Orthen",lv:90,xp:24000,mats:{"Imbued slate":34,"Quintessence":28,"Orgone":20}},
+      {name:"Senntisten goblet",site:"Senntisten",lv:77,xp:15000,mats:{"Zaryte fragments":32,"Praesulic essence (melee)":22,"Goldrune":16}},
+      {name:"Praesulic robes",site:"Senntisten",lv:87,xp:22000,mats:{"Praesulic essence (melee)":30,"Praesulic essence (ranged)":24,"Praesulic essence (magic)":18}},
+      {name:"Zarosian warstaff",site:"Senntisten",lv:87,xp:22000,mats:{"Praesulic essence (magic)":32,"Zaryte fragments":26,"Imbued slate":16}},
+    ];
+    const STORAGE_ORDER = [
+      "Third Age iron","Samite silk","White oak","Goldrune","Orthenglass",
+      "Vellum","Leather scraps","Soapstone","Animal furs","Fossilised bone",
+      "Stormguard steel","Wings of War","Armadylean yellow","Aetherium alloy","Quintessence",
+      "Malachite green","Mark of the Kyzaj","Vulcanised rubber","Warforged bronze","Yu'biusk clay",
+      "Dragon metal","Orgone","Compass rose","Carbon black","Felt",
+      "Keramos","White marble","Cobalt blue","Everlight silvthril","Star of Saradomin",
+      "Cadmium red","Chaotic brimstone","Demonhide","Eye of Dagon","Hellfire metal",
+      "Zarosian insignia","Imperial steel","Ancient vis","Tyrian purple","Blood of Orcus"
+    ];
+    const KEY = "archtracker_v4";
+    let S = {counts:{}, goals:{}, session:null};
+    let ocrParsed = {};
+    let storedWinX = parseInt(localStorage.getItem("archStorageWinX")) || null;
+    let storedWinY = parseInt(localStorage.getItem("archStorageWinY")) || null;
+    let storedWinWidth = parseInt(localStorage.getItem("archStorageWinWidth")) || 500;
+    let storedWinHeight = parseInt(localStorage.getItem("archStorageWinHeight")) || 342;
+    let offsetX=10, offsetY=66, offsetY2=78, horizStep=46, rowStep=70, iconSize=42;
+
+    function loadTuners() {
+      const s = JSON.parse(localStorage.getItem("archOcrTuners") || "{}");
+      offsetX=s.offsetX??10; offsetY=s.offsetY??66; offsetY2=s.offsetY2??78;
+      horizStep=s.horizStep??46; rowStep=s.rowStep??70; iconSize=s.iconSize??42;
+      document.getElementById("t-ox").value=offsetX;
+      document.getElementById("t-oy").value=offsetY;
+      document.getElementById("t-oy2").value=offsetY2;
+      document.getElementById("t-step").value=horizStep;
+      document.getElementById("t-row").value=rowStep;
+      document.getElementById("t-icon").value=iconSize;
+    }
+    function saveTuners() {
+      localStorage.setItem("archOcrTuners", JSON.stringify({offsetX,offsetY,offsetY2,horizStep,rowStep,iconSize}));
+    }
+    ["t-ox","t-oy","t-oy2","t-step","t-row","t-icon"].forEach(id => {
+      document.getElementById(id).addEventListener("input", e => {
+        const v = parseInt(e.target.value)||0;
+        if(id==="t-ox") offsetX=v; if(id==="t-oy") offsetY=v; if(id==="t-oy2") offsetY2=v;
+        if(id==="t-step") horizStep=v; if(id==="t-row") rowStep=v; if(id==="t-icon") iconSize=v;
+        saveTuners();
+      });
+    });
+    document.getElementById("t-rescan").addEventListener("click", scanTop);
+    document.getElementById("t-rescan-bot").addEventListener("click", scanBottom);
+
+    function previewBoxes(startIdx, endIdx, useOffsetY) {
+      if (!storedWinX||!storedWinY) { document.getElementById("ocr-out").textContent="Locate window first."; return; }
+      const absX=storedWinX, absY=storedWinY;
+      alt1.overLayRect(A1lib.mixColor(255,200,0), absX, absY, storedWinWidth, storedWinHeight, 8000, 2);
+      const rowDefs=[{slots:10},{slots:5},{slots:5},{slots:5},{slots:5},{slots:5},{slots:5}];
+      let storageIdx=0;
+      for (let rowIdx=0; rowIdx<rowDefs.length; rowIdx++) {
+        const row=rowDefs[rowIdx];
+        const iconTop=absY+useOffsetY+(rowIdx*rowStep)-14;
+        const numY=absY+useOffsetY+(rowIdx*rowStep);
+        for (let slot=0; slot<row.slots; slot++) {
+          const idx=storageIdx+slot;
+          if (idx>=STORAGE_ORDER.length) break;
+          const iconX=absX+offsetX+(slot*horizStep);
+          alt1.overLayRect(A1lib.mixColor(80,180,255), iconX, iconTop, iconSize, iconSize+14, 8000, 2);
+          if (idx>=startIdx && idx<=endIdx) {
+            alt1.overLayRect(A1lib.mixColor(0,255,0), iconX, numY-4, iconSize, 18, 8000, 2);
+          }
+        }
+        storageIdx+=row.slots;
+      }
+      alt1.overLayRefreshGroup("0");
+      document.getElementById("ocr-out").textContent="Blue=icon area, Green=number read zone. Tune until aligned.";
+    }
+    document.getElementById("t-preview-top").addEventListener("click", ()=>previewBoxes(0,19,offsetY));
+    document.getElementById("t-preview-bot").addEventListener("click", ()=>previewBoxes(20,39,offsetY2));
+
+    function isGold(r,g,b) {
+      return r>180 && g>120 && b<100 && r>g+20;
+    }
+
+    function readNumberAt(x, y) {
+      try {
+        const W=44, H=14;
+        const cap=A1lib.capture(x, y-4, W, H);
+        if (!cap||!cap.data) return null;
+        const data=cap.data, w=cap.width, h=cap.height;
+
+        // Find columns with gold pixels
+        const cols=[];
+        for (let px=0; px<w; px++) {
+          let hasGold=false;
+          for (let py=0; py<h; py++) {
+            const i=(py*w+px)*4;
+            if (isGold(data[i],data[i+1],data[i+2])) { hasGold=true; break; }
+          }
+          cols.push(hasGold);
+        }
+
+        // Group into segments
+        const segments=[];
+        let inSeg=false, segStart=0;
+        for (let px=0; px<w; px++) {
+          if (cols[px]&&!inSeg) { inSeg=true; segStart=px; }
+          else if (!cols[px]&&inSeg) { segments.push({start:segStart,width:px-segStart}); inSeg=false; }
+        }
+        if (inSeg) segments.push({start:segStart,width:w-segStart});
+
+        if (!segments.length) { console.log(`readNumberAt(${x},${y}): no gold pixels → 0`); return 0; }
+
+        let numStr="";
+        for (const seg of segments) {
+          if (seg.width<=2) continue; // skip comma/noise
+
+          // Count gold pixels per column in this segment
+          const profile=[];
+          for (let px=seg.start; px<seg.start+seg.width; px++) {
+            let cnt=0;
+            for (let py=0; py<h; py++) {
+              const i=(py*w+px)*4;
+              if (isGold(data[i],data[i+1],data[i+2])) cnt++;
+            }
+            profile.push(cnt);
+          }
+
+          const sw=seg.width;
+          const totalPx=profile.reduce((a,b)=>a+b,0);
+          const avgH=totalPx/sw;
+          const midStart=Math.floor(sw*0.25), midEnd=Math.ceil(sw*0.75);
+          const midPx=profile.slice(midStart,midEnd).reduce((a,b)=>a+b,0);
+          const midAvg=midPx/Math.max(1,midEnd-midStart);
+          const leftPx=profile.slice(0,Math.ceil(sw/2)).reduce((a,b)=>a+b,0);
+          const rightPx=profile.slice(Math.floor(sw/2)).reduce((a,b)=>a+b,0);
+          // Top/bottom rows
+          let topPx=0, botPx=0;
+          for (let px=seg.start; px<seg.start+sw; px++) {
+            const ti=(0*w+px)*4, bi=((h-1)*w+px)*4;
+            if (isGold(data[ti],data[ti+1],data[ti+2])) topPx++;
+            if (isGold(data[bi],data[bi+1],data[bi+2])) botPx++;
+          }
+
+          let digit="?";
+          if (sw<=4) {
+            digit="1";
+          } else if (midAvg<1.0 && avgH>2) {
+            digit="0"; // hollow middle = 0
+          } else if (avgH>=6) {
+            digit="8"; // very dense
+          } else if (topPx<1 && botPx>=1) {
+            digit="2"; // top open, curves down
+          } else if (topPx>=1 && botPx<1) {
+            digit="9"; // bottom open
+          } else if (leftPx>rightPx*1.5) {
+            digit="4";
+          } else if (rightPx>leftPx*1.3 && midAvg<2.5) {
+            digit="7";
+          } else if (avgH>4 && leftPx>=rightPx) {
+            digit="6";
+          } else if (avgH>3.5) {
+            digit="3";
+          } else if (leftPx>rightPx) {
+            digit="5";
+          } else {
+            digit="2";
+          }
+          numStr+=digit;
+        }
+
+        const n=parseInt(numStr);
+        console.log(`readNumberAt(${x},${y}): segs=${segments.length} str="${numStr}" n=${n} | segments:`, segments.map(s=>s.width));
+        return isNaN(n)?null:n;
+      } catch(e) {
+        console.log("readNumberAt error:",e);
+        return null;
+      }
+    }
+
+    async function performScan(startIdx, endIdx, label, useOffsetY) {
+      const out=document.getElementById("ocr-out");
+      if (!storedWinX||!storedWinY) { out.textContent="Locate window first."; return; }
+      const absX=storedWinX, absY=storedWinY;
+      out.textContent="Scanning "+label+"...";
+      alt1.overLayRect(A1lib.mixColor(255,200,0), absX, absY, storedWinWidth, storedWinHeight, 5000, 2);
+      const results={};
+      let good=0;
+      const rowDefs=[{slots:10},{slots:5},{slots:5},{slots:5},{slots:5},{slots:5},{slots:5}];
+      let storageIdx=0;
+      for (let rowIdx=0; rowIdx<rowDefs.length; rowIdx++) {
+        const row=rowDefs[rowIdx];
+        const numY=absY+useOffsetY+(rowIdx*rowStep);
+        const rowW=row.slots*horizStep;
+        const rowStart=storageIdx, rowEnd=storageIdx+row.slots-1;
+        if (rowEnd>=startIdx && rowStart<=endIdx) {
+          alt1.overLayRect(A1lib.mixColor(255,255,0), absX+offsetX, numY-4, rowW, 18, 4000, 1);
+        }
+        for (let slot=0; slot<row.slots; slot++) {
+          const idx=storageIdx+slot;
+          if (idx>=startIdx && idx<=endIdx) {
+            const mat=STORAGE_ORDER[idx];
+            if (mat) {
+              const numX=absX+offsetX+(slot*horizStep);
+              alt1.overLayRect(A1lib.mixColor(0,255,0), numX, numY-4, iconSize, 18, 4000, 1);
+              const num=readNumberAt(numX, numY);
+              if (num!==null) { results[mat]=num; good++; }
+              await new Promise(r=>setTimeout(r,100));
+            }
+          }
+        }
+        storageIdx+=row.slots;
+      }
+      alt1.overLayRefreshGroup("0");
+      Object.assign(ocrParsed, results);
+      showOCRRes(ocrParsed);
+      out.textContent="Added "+good+" from "+label+". Total: "+Object.keys(ocrParsed).length+". Apply when ready.";
+    }
+
+    function scanTop() { performScan(0,19,"Top (Agnostic+Armadylean+Bandosian)",offsetY); }
+    function scanBottom() { performScan(20,39,"Bottom (Dragonkin+Saradominist+Zamorakian+Zarosian)",offsetY2); }
+
+    function showOCRRes(parsed) {
+      const keys=Object.keys(parsed);
+      document.getElementById("ocr-summary").textContent=keys.length?"Detected "+keys.length+" materials:":"No values detected.";
+      document.getElementById("ocr-match-list").innerHTML=keys.map(k=>
+        `<div style='display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)'>
+          <span style='color:var(--accent2)'>${k}</span><span style='color:var(--accent)'>${parsed[k].toLocaleString()}</span>
+        </div>`).join("");
+      document.getElementById("ocr-results").style.display="block";
+    }
+
+    function startLocate() {
+      const status=document.getElementById("locate-status");
+      const btn=document.getElementById("btn-locate");
+      const existing=document.getElementById("coord-input");
+      if (existing) { existing.remove(); return; }
+      const div=document.createElement("div");
+      div.id="coord-input";
+      div.style.cssText="display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:9px;color:var(--muted);margin-top:4px";
+      div.innerHTML=`X:<input type='number' id='coord-x' class='tin' style='width:58px' value='${storedWinX||""}'>
+        Y:<input type='number' id='coord-y' class='tin' style='width:58px' value='${storedWinY||""}'>
+        W:<input type='number' id='coord-w' class='tin' style='width:52px' value='${storedWinWidth}'>
+        H:<input type='number' id='coord-h' class='tin' style='width:52px' value='${storedWinHeight}'>
+        <button class='btn suc' id='btn-coord-set' style='font-size:9px'>Set</button>
+        <button class='btn' id='btn-validate' style='font-size:9px'>Validate</button>`;
+      btn.parentNode.insertBefore(div, btn.nextSibling);
+      document.getElementById("btn-coord-set").addEventListener("click", ()=>{
+        const x=parseInt(document.getElementById("coord-x").value);
+        const y=parseInt(document.getElementById("coord-y").value);
+        const w=parseInt(document.getElementById("coord-w").value)||500;
+        const h=parseInt(document.getElementById("coord-h").value)||342;
+        if (isNaN(x)||isNaN(y)||x<=0||y<=0) { status.textContent="Enter valid X and Y."; status.style.color="var(--danger)"; return; }
+        storedWinX=x; storedWinY=y; storedWinWidth=w; storedWinHeight=h;
+        localStorage.setItem("archStorageWinX",x); localStorage.setItem("archStorageWinY",y);
+        localStorage.setItem("archStorageWinWidth",w); localStorage.setItem("archStorageWinHeight",h);
+        status.textContent="Saved ("+x+", "+y+") "+w+"x"+h;
+        status.style.color="var(--accent2)"; div.remove();
+      });
+      document.getElementById("btn-validate").addEventListener("click", ()=>{
+        if (!storedWinX||!storedWinY) { status.textContent="Set coords first."; return; }
+        alt1.overLayRect(A1lib.mixColor(255,200,0), storedWinX, storedWinY, storedWinWidth, storedWinHeight, 8000, 2);
+        status.textContent="Yellow box drawn — check alignment in RS3";
+      });
+    }
+
+    function load() {
+      try { const s=localStorage.getItem(KEY); if(s) S=JSON.parse(s); } catch(e) {}
+      STORAGE_ORDER.forEach(name=>{ if(S.counts[name]==null)S.counts[name]=0; if(S.goals[name]==null)S.goals[name]=0; });
+      MATS.forEach(m=>{ if(S.counts[m.name]==null)S.counts[m.name]=0; if(S.goals[m.name]==null)S.goals[m.name]=0; });
+    }
+    function save() { localStorage.setItem(KEY, JSON.stringify(S)); updateStatus(); }
+
+    function renderMats() {
+      const tb=document.getElementById("mat-tbody"); tb.innerHTML="";
+      const allMats=Object.keys(S.counts).map(name=>{
+        const mat=MATS.find(m=>m.name===name);
+        return {name, lv:mat?mat.lv:"—", c:mat?mat.c:"Unknown", have:S.counts[name]||0, goal:S.goals[name]||0};
+      }).filter(mat=>{
+        const q=document.getElementById("search-box").value.toLowerCase();
+        const c=document.getElementById("filter-culture").value;
+        return (!c||mat.c===c||mat.c==="Unknown")&&(!q||mat.name.toLowerCase().includes(q));
+      }).sort((a,b)=>a.name.localeCompare(b.name));
+      allMats.forEach(mat=>{
+        const pct=mat.goal>0?Math.min(100,Math.round(mat.have/mat.goal*100)):(mat.have>0?100:0);
+        const cls=mat.goal>0?(pct>=100?"full":pct>=50?"mid":"low"):"low";
+        const cc=CULTURE_COL[mat.c]||"#888888";
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td><div class='mn'><span class='cdot' style='background:${cc}'></span>${mat.name}${mat.c==="Unknown"?" <small>(extra)</small>":""}</div></td>
+          <td style='text-align:center;color:var(--muted)'>${mat.lv}</td>
+          <td><div class='cc'><button class='btn-xs' data-a='dec' data-n='${mat.name}'>−</button>
+          <input class='ci' type='number' min='0' value='${mat.have}' data-n='${mat.name}'>
+          <button class='btn-xs' data-a='inc' data-n='${mat.name}'>+</button></div></td>
+          <td><input class='gi' type='number' min='0' value='${mat.goal}' data-g='${mat.name}'></td>
+          <td style='text-align:right'><div class='pw' style='margin-left:auto'><div class='pb ${cls}' style='width:${pct}%'></div></div>
+          <div style='font-size:9px;color:var(--muted);text-align:right'>${mat.goal>0?pct+"%":"—"}</div></td>`;
+        tb.appendChild(tr);
+      });
+      if (!allMats.length) {
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td colspan="5" style="text-align:center;padding:12px;color:var(--muted);">No materials match.</td>`;
+        tb.appendChild(tr);
+      }
+    }
+    function renderLegend() {
+      document.getElementById("legend").innerHTML=Object.entries(CULTURE_COL).map(e=>
+        `<div class='li'><span class='cdot' style='background:${e[1]}'></span>${e[0]}</div>`).join("");
+    }
+    document.getElementById("mat-tbody").addEventListener("click", e=>{
+      const b=e.target.closest(".btn-xs"); if(!b) return;
+      const n=b.dataset.n;
+      if(b.dataset.a==="inc") S.counts[n]=(S.counts[n]||0)+1;
+      if(b.dataset.a==="dec") S.counts[n]=Math.max(0,(S.counts[n]||0)-1);
+      save(); renderMats(); renderArts(); renderSessionMats();
+    });
+    document.getElementById("mat-tbody").addEventListener("change", e=>{
+      if(e.target.matches(".ci")) { S.counts[e.target.dataset.n]=Math.max(0,parseInt(e.target.value)||0); save(); renderMats(); renderArts(); renderSessionMats(); }
+      if(e.target.matches(".gi")) { S.goals[e.target.dataset.g]=Math.max(0,parseInt(e.target.value)||0); save(); renderMats(); }
+    });
+    document.getElementById("search-box").addEventListener("input", renderMats);
+    document.getElementById("filter-culture").addEventListener("change", renderMats);
+    document.getElementById("btn-reset-all").addEventListener("click", ()=>{
+      if(!confirm("Reset ALL counts to 0?")) return;
+      Object.keys(S.counts).forEach(name=>{S.counts[name]=0;});
+      save(); renderMats(); renderArts(); renderSessionMats();
+    });
+
+    function canRestore(art) { return Object.entries(art.mats).every(e=>(S.counts[e[0]]||0)>=e[1]); }
+    function matCulture(name) { const m=MATS.find(x=>x.name===name); return m?m.c:"Unknown"; }
+
+    function renderArts() {
+      const q=document.getElementById("art-search").value.toLowerCase();
+      const site=document.getElementById("art-site").value;
+      const f=document.getElementById("art-filter").value;
+      const filtered=ARTEFACTS.filter(a=>{
+        if(site&&a.site!==site) return false;
+        if(q&&!a.name.toLowerCase().includes(q)) return false;
+        if(f==="can"&&!canRestore(a)) return false;
+        if(f==="cant"&&canRestore(a)) return false;
+        return true;
+      });
+      const bySite={};
+      filtered.forEach(a=>{ if(!bySite[a.site])bySite[a.site]=[]; bySite[a.site].push(a); });
+      const scroll=document.getElementById("art-scroll"); scroll.innerHTML="";
+      if(!filtered.length) { scroll.innerHTML="<div style='padding:12px;color:var(--muted)'>No artefacts match.</div>"; return; }
+      Object.entries(bySite).forEach(se=>{
+        const hdr=document.createElement("div"); hdr.className="site-hdr"; hdr.textContent=se[0]; scroll.appendChild(hdr);
+        se[1].sort((a,b)=>a.lv-b.lv).forEach(art=>{
+          const can=canRestore(art);
+          const matRows=Object.entries(art.mats).map(me=>{
+            const have=S.counts[me[0]]||0, ok=have>=me[1];
+            return `<div class='mr ${ok?"ok":"bad"}'><span class='cdot' style='background:${CULTURE_COL[matCulture(me[0])]}'></span><span>${me[0]}</span><span class='need'><span class='have'>${have.toLocaleString()}</span> / ${me[1]}</span></div>`;
+          }).join("");
+          const card=document.createElement("div"); card.className="art-card";
+          card.innerHTML=`<div class='art-head'><span class='art-name'>${art.name}</span><span class='art-lvl'>Lv ${art.lv}</span><span class='art-xp'>${art.xp.toLocaleString()} xp</span></div>
+            ${matRows}<div class='art-footer'><span class='${can?"art-can":"art-cant"}'>${can?"✔ Can restore":"✖ Missing mats"}</span>
+            ${can?`<button class='btn suc' style='font-size:9px;padding:2px 6px' data-restore='${art.name}'>Restore →</button>`:""}</div>`;
+          scroll.appendChild(card);
+        });
+      });
+      scroll.querySelectorAll("[data-restore]").forEach(b=>{
+        b.addEventListener("click", ()=>{
+          const art=ARTEFACTS.find(a=>a.name===b.dataset.restore);
+          if(!art||!canRestore(art)) return;
+          Object.entries(art.mats).forEach(e=>{ S.counts[e[0]]=Math.max(0,(S.counts[e[0]]||0)-e[1]); });
+          logRestore(art); save(); renderMats(); renderArts(); renderSessionMats();
+        });
+      });
+    }
+    document.getElementById("art-search").addEventListener("input", renderArts);
+    document.getElementById("art-site").addEventListener("change", renderArts);
+    document.getElementById("art-filter").addEventListener("change", renderArts);
+
+    let sessInterval=null, sessStart=null, sessSnap={}, sessRestores=[];
+    function tickSession() {
+      if(!sessStart) return;
+      const el=Date.now()-sessStart;
+      document.getElementById("sess-timer").textContent=
+        String(Math.floor(el/3600000)).padStart(2,"0")+":"+String(Math.floor((el%3600000)/60000)).padStart(2,"0")+":"+String(Math.floor((el%60000)/1000)).padStart(2,"0");
+      const totalXp=sessRestores.reduce((a,r)=>a+r.xp,0);
+      const elHr=(Date.now()-sessStart)/3600000;
+      document.getElementById("s-arts").textContent=sessRestores.length;
+      document.getElementById("s-xp").textContent=totalXp.toLocaleString();
+      document.getElementById("s-xphr").textContent=elHr>0.001?Math.round(totalXp/elHr).toLocaleString():"--";
+      document.getElementById("s-time").textContent=Math.floor(el/3600000)+"h "+Math.floor((el%3600000)/60000)+"m "+Math.floor((el%60000)/1000)+"s";
+    }
+    function startSess() {
+      sessStart=Date.now(); sessSnap={...S.counts}; sessRestores=[];
+      S.session={start:sessStart,snap:sessSnap,restores:[]};
+      save();
+      document.getElementById("btn-sess-start").textContent="⏸ Running...";
+      document.getElementById("btn-sess-start").disabled=true;
+      if(sessInterval) clearInterval(sessInterval);
+      sessInterval=setInterval(tickSession,1000); tickSession();
+      renderSessionLogBtns(); renderSessionMats();
+    }
+    function logRestore(art) {
+      if(!sessStart) return;
+      sessRestores.push({name:art.name,xp:art.xp,t:Date.now()});
+      if(S.session) S.session.restores=sessRestores;
+      document.getElementById("recent-restores").innerHTML=sessRestores.slice(-5).reverse().map(r=>
+        `<div style='padding:1px 0'>${r.name} <span style='color:var(--accent3)'>+${r.xp.toLocaleString()} xp</span></div>`).join("");
+    }
+    function renderSessionMats() {
+      if(!document.getElementById("panel-sess").classList.contains("active")) return;
+      const rows=Object.keys(S.counts).map(name=>{ const g=(S.counts[name]||0)-(sessSnap[name]||0); return g!==0?{n:name,g}:null; }).filter(Boolean);
+      const el=document.getElementById("sess-mat-list");
+      if(!sessStart) { el.textContent="Start a session to track gains."; return; }
+      if(!rows.length) { el.textContent="No changes yet."; return; }
+      el.innerHTML=rows.map(r=>`<div style='display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)'>
+        <span>${r.n}</span><span style='color:${r.g>0?"var(--accent2)":"var(--danger)"}'>${r.g>0?"+":""}${r.g.toLocaleString()}</span></div>`).join("");
+    }
+    function renderSessionLogBtns() {
+      const wrap=document.getElementById("art-log-btns"); wrap.innerHTML="";
+      const rs=ARTEFACTS.filter(canRestore);
+      if(!rs.length) { wrap.innerHTML="<span style='color:var(--muted);font-size:10px'>No artefacts restorable.</span>"; return; }
+      rs.slice(0,15).forEach(art=>{
+        const b=document.createElement("button"); b.className="btn"; b.textContent=art.name;
+        b.style.cssText="font-size:9px;padding:2px 5px";
+        b.addEventListener("click",()=>{ if(!sessStart) return; logRestore(art); save(); renderSessionMats(); });
+        wrap.appendChild(b);
+      });
+    }
+    document.getElementById("btn-sess-start").addEventListener("click", startSess);
+    document.getElementById("btn-sess-reset").addEventListener("click", ()=>{
+      if(!confirm("Reset session?")) return;
+      if(sessInterval){clearInterval(sessInterval);sessInterval=null;}
+      sessStart=null; sessSnap={}; sessRestores=[]; S.session=null; save();
+      document.getElementById("sess-timer").textContent="00:00:00";
+      document.getElementById("s-time").textContent="--";
+      document.getElementById("s-arts").textContent="0";
+      document.getElementById("s-xp").textContent="0";
+      document.getElementById("s-xphr").textContent="--";
+      document.getElementById("btn-sess-start").textContent="▶ Start Session";
+      document.getElementById("btn-sess-start").disabled=false;
+      renderSessionMats(); document.getElementById("recent-restores").textContent="";
+    });
+
+    function updateStatus() {
+      let total=0,types=0,met=0,goaled=0;
+      Object.keys(S.counts).forEach(name=>{ const c=S.counts[name]||0,g=S.goals[name]||0; total+=c; if(c>0)types++; if(g>0){goaled++;if(c>=g)met++;} });
+      document.getElementById("s-total").textContent=total.toLocaleString();
+      document.getElementById("s-types").textContent=types;
+      document.getElementById("s-goals").textContent=met+"/"+goaled;
+      document.getElementById("s-canrest").textContent=ARTEFACTS.filter(canRestore).length;
+    }
+
+    document.querySelectorAll(".tab").forEach(tab=>{
+      tab.addEventListener("click", ()=>{
+        document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-"+tab.dataset.tab).classList.add("active");
+        if(tab.dataset.tab==="art") renderArts();
+        if(tab.dataset.tab==="sess"){renderSessionLogBtns();renderSessionMats();}
+      });
+    });
+
+    document.getElementById("btn-scan-top").addEventListener("click", ()=>{
+      document.getElementById("tuner-wrap").style.display="block"; loadTuners(); scanTop();
+    });
+    document.getElementById("btn-scan-bottom").addEventListener("click", ()=>{
+      document.getElementById("tuner-wrap").style.display="block"; loadTuners(); scanBottom();
+    });
+    document.getElementById("btn-locate").addEventListener("click", startLocate);
+
+    document.getElementById("btn-ocr-apply").addEventListener("click", ()=>{
+      Object.entries(ocrParsed).forEach(([ocrName,count])=>{
+        const trimmed=ocrName.trim();
+        const matched=Object.keys(S.counts).find(k=>k.trim().toLowerCase()===trimmed.toLowerCase());
+        if(matched) S.counts[matched]=count;
+        else S.counts[trimmed]=count;
+      });
+      save(); renderMats(); renderArts(); renderSessionMats();
+      document.getElementById("ocr-results").style.display="none";
+      document.getElementById("ocr-out").textContent="Applied "+Object.keys(ocrParsed).length+" materials.";
+      ocrParsed={};
+    });
+    document.getElementById("btn-ocr-discard").addEventListener("click", ()=>{
+      document.getElementById("ocr-results").style.display="none";
+      document.getElementById("ocr-out").textContent="Discarded.";
+      ocrParsed={};
+    });
+    document.getElementById("btn-manual-ocr").addEventListener("click", ()=>{
+      const pb=document.getElementById("paste-box"), pp=document.getElementById("btn-parse-paste");
+      const show=pb.style.display==="none";
+      pb.style.display=show?"block":"none"; pp.style.display=show?"block":"none";
+    });
+    document.getElementById("btn-parse-paste").addEventListener("click", ()=>{
+      const text=document.getElementById("paste-box").value;
+      const res={};
+      STORAGE_ORDER.forEach(name=>{
+        const esc=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        let m=text.match(new RegExp(esc+"[\\s\\S]{0,30}?([\\d,]+)","i"));
+        if(m){res[name]=parseInt(m[1].replace(/,/g,""));return;}
+        m=text.match(new RegExp("([\\d,]+)[^\\n]{0,15}"+esc,"i"));
+        if(m) res[name]=parseInt(m[1].replace(/,/g,""));
+      });
+      if(Object.keys(res).length) showOCRRes(res);
+      else document.getElementById("ocr-out").textContent="No materials found in pasted text.";
+    });
+
+    load();
+    window.addEventListener("load", function() {
+      if(window.alt1) {
+        A1lib.identifyApp("appconfig.json");
+        document.getElementById("alt1-badge").textContent="Alt1 ✅";
+        document.getElementById("alt1-badge").classList.add("ok");
+        const sx=localStorage.getItem("archStorageWinX");
+        if(sx) document.getElementById("locate-status").textContent="Window: ("+sx+", "+localStorage.getItem("archStorageWinY")+")";
+      }
+    });
+    renderMats(); renderLegend(); renderArts(); updateStatus();
+  </script>
+</body>
+</html>
