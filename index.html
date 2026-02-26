@@ -574,29 +574,25 @@
         }
 
         let foundY=-1, foundLeft=-1, foundRight=-1;
-        outer:
-        for (let y=0; y<H; y++) {
-          let runStart=-1, runLen=0;
+        for (let y=0; y<H && foundY===-1; y++) {
+          // Collect all runs on this row
+          const runs=[];
+          let runStart=-1;
           for (let x=0; x<W; x++) {
             const idx=(y*W+x)*4;
-            if (isTitleColour(data.data[idx], data.data[idx+1], data.data[idx+2])) {
-              if (runStart===-1) runStart=x;
-              runLen++;
-              // Looking for a run of ~200px matching the ~500px wide title bar
-              if (runLen>=200) {
-                // Find the full extent of the run
-                let rx=x+1;
-                while (rx<W) {
-                  const ri=(y*W+rx)*4;
-                  if (isTitleColour(data.data[ri], data.data[ri+1], data.data[ri+2])) rx++;
-                  else break;
-                }
-                foundY=y; foundLeft=runStart; foundRight=rx-1;
-                break outer;
-              }
-            } else {
-              runStart=-1; runLen=0;
-            }
+            const match=isTitleColour(data.data[idx],data.data[idx+1],data.data[idx+2]);
+            if (match && runStart===-1) runStart=x;
+            if (!match && runStart!==-1) { runs.push({x:runStart,len:x-runStart}); runStart=-1; }
+          }
+          if (runStart!==-1) runs.push({x:runStart,len:W-runStart});
+          // Filter to significant runs only (>50px) and sum total length
+          const sigRuns=runs.filter(r=>r.len>=50);
+          const totalLen=sigRuns.reduce((a,r)=>a+r.len,0);
+          // Title bar should have 400+ px of matching colour total
+          if (sigRuns.length>=1 && totalLen>=400) {
+            foundY=y;
+            foundLeft=sigRuns[0].x;
+            foundRight=sigRuns[sigRuns.length-1].x+sigRuns[sigRuns.length-1].len-1;
           }
         }
 
