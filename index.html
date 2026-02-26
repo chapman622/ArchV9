@@ -366,7 +366,9 @@
     document.getElementById("t-preview-bot").addEventListener("click", ()=>previewBoxes(20,39,offsetY2));
 
     function isGold(r,g,b) {
-      return r>180 && g>120 && b<100 && r>g+20;
+      // RS3 numbers are bright yellow: R~255, G~255, B~0
+      // Allow some tolerance for compression/scaling
+      return r>180 && g>180 && b<80;
     }
 
     function readNumberAt(x, y) {
