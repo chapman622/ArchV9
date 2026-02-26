@@ -558,38 +558,38 @@
       document.getElementById("ocr-results").style.display="block";
     }
 
-    function startLocate() {
+    async function startLocate() {
       const status=document.getElementById("locate-status");
       const btn=document.getElementById("btn-locate");
-      const existing=document.getElementById("coord-input");
-      if (existing) { existing.remove(); return; }
-      const div=document.createElement("div");
-      div.id="coord-input";
-      div.style.cssText="display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:9px;color:var(--muted);margin-top:4px";
-      div.innerHTML=`X:<input type='number' id='coord-x' class='tin' style='width:58px' value='${storedWinX||""}'>
-        Y:<input type='number' id='coord-y' class='tin' style='width:58px' value='${storedWinY||""}'>
-        W:<input type='number' id='coord-w' class='tin' style='width:52px' value='${storedWinWidth}'>
-        H:<input type='number' id='coord-h' class='tin' style='width:52px' value='${storedWinHeight}'>
-        <button class='btn suc' id='btn-coord-set' style='font-size:9px'>Set</button>
-        <button class='btn' id='btn-validate' style='font-size:9px'>Validate</button>`;
-      btn.parentNode.insertBefore(div, btn.nextSibling);
-      document.getElementById("btn-coord-set").addEventListener("click", ()=>{
-        const x=parseInt(document.getElementById("coord-x").value);
-        const y=parseInt(document.getElementById("coord-y").value);
-        const w=parseInt(document.getElementById("coord-w").value)||500;
-        const h=parseInt(document.getElementById("coord-h").value)||342;
-        if (isNaN(x)||isNaN(y)||x<=0||y<=0) { status.textContent="Enter valid X and Y."; status.style.color="var(--danger)"; return; }
-        storedWinX=x; storedWinY=y; storedWinWidth=w; storedWinHeight=h;
-        localStorage.setItem("archStorageWinX",x); localStorage.setItem("archStorageWinY",y);
-        localStorage.setItem("archStorageWinWidth",w); localStorage.setItem("archStorageWinHeight",h);
-        status.textContent="Saved ("+x+", "+y+") "+w+"x"+h;
-        status.style.color="var(--accent2)"; div.remove();
-      });
-      document.getElementById("btn-validate").addEventListener("click", ()=>{
-        if (!storedWinX||!storedWinY) { status.textContent="Set coords first."; return; }
-        alt1.overLayRect(A1lib.mixColor(255,200,0), storedWinX, storedWinY, storedWinWidth, storedWinHeight, 8000, 2);
-        status.textContent="Yellow box drawn — check alignment in RS3";
-      });
+      if (!window.alt1) { status.textContent="Alt1 not detected."; status.style.color="var(--danger)"; return; }
+      status.textContent="Searching..."; status.style.color="var(--muted)";
+      btn.disabled=true;
+      try {
+        const img = await A1lib.loadImageUrl("matstore_title.png");
+        const found = A1lib.captureHoldFullRs().findSubimage(img);
+        if (!found || found.length===0) {
+          status.textContent="Not found — is Material Storage open?";
+          status.style.color="var(--danger)";
+          btn.disabled=false;
+          return;
+        }
+        const match = found[0];
+        const winX = match.x - 140;
+        const winY = match.y - 4;
+        storedWinX=winX; storedWinY=winY; storedWinWidth=500; storedWinHeight=342;
+        localStorage.setItem("archStorageWinX", winX);
+        localStorage.setItem("archStorageWinY", winY);
+        localStorage.setItem("archStorageWinWidth", 500);
+        localStorage.setItem("archStorageWinHeight", 342);
+        alt1.overLayRect(A1lib.mixColor(255,200,0), storedWinX, storedWinY, storedWinWidth, storedWinHeight, 5000, 2);
+        status.textContent="Found at ("+winX+", "+winY+") ✔";
+        status.style.color="var(--accent2)";
+      } catch(e) {
+        status.textContent="Error: "+e.message;
+        status.style.color="var(--danger)";
+        console.error("Locate error:", e);
+      }
+      btn.disabled=false;
     }
 
     function load() {
