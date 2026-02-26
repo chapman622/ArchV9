@@ -370,7 +370,7 @@
       if (!storedWinX||!storedWinY) return;
       const x=storedWinX+offsetX, y=storedWinY+offsetY;
       const W=44, H=20;
-      const cap=A1lib.capture(x, y+8, W, H);
+      const cap=A1lib.capture(x, y+4, W, H);
       const data=cap.data, w=cap.width, h=cap.height;
       let map="Pixel map (Y rows, X cols) — Y=yellow, .=dark:\n";
       for (let py=0; py<h; py++) {
