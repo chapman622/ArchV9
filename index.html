@@ -200,7 +200,6 @@
           <button class="btn suc" id="t-rescan-bot" style="font-size:9px;padding:2px 5px">▶ Re-Scan Bottom</button>
           <button class="btn" id="t-preview-top" style="font-size:9px;padding:2px 5px">👁 Preview Top Boxes</button>
           <button class="btn" id="t-preview-bot" style="font-size:9px;padding:2px 5px">👁 Preview Bottom Boxes</button>
-          <button class="btn" id="t-debug-px" style="font-size:9px;padding:2px 5px">🔬 Debug Pixels</button>
         </div>
         <div style="font-size:9px;color:var(--muted);margin-top:4px">Blue = icon area. Green = number read zone. Tune until aligned.</div>
       </div>
@@ -366,25 +365,6 @@
     }
     document.getElementById("t-preview-top").addEventListener("click", ()=>previewBoxes(0,19,offsetY));
     document.getElementById("t-preview-bot").addEventListener("click", ()=>previewBoxes(20,39,offsetY2));
-    document.getElementById("t-debug-px").addEventListener("click", ()=>{
-      if (!storedWinX||!storedWinY) return;
-      const x=storedWinX+offsetX, y=storedWinY+offsetY;
-      const W=44, H=20;
-      const cap=A1lib.capture(x, y+4, W, H);
-      const data=cap.data, w=cap.width, h=cap.height;
-      let map="Pixel map (Y rows, X cols) — Y=yellow, .=dark:\n";
-      for (let py=0; py<h; py++) {
-        let row=`y${py}: `;
-        for (let px=0; px<w; px++) {
-          const i=(py*w+px)*4;
-          const r=data[i],g=data[i+1],b=data[i+2];
-          row += (r>180&&g>180&&b<130) ? "Y" : ".";
-        }
-        map+=row+"\n";
-      }
-      console.log(map);
-      document.getElementById("ocr-out").textContent=map;
-    });
 
     function isGold(r,g,b) {
       // RS3 numbers are bright yellow: R~255, G~255, B~0
@@ -392,117 +372,126 @@
     }
 
     function readNumberAt(x, y) {
-  try {
-    const W=44, H=20;
-    const cap=A1lib.capture(x, y+4, W, H);
-    if (!cap||!cap.data) return null;
-    const data=cap.data, w=cap.width, h=cap.height;
+      try {
+        const W=44, H=20;
+        const cap=A1lib.capture(x, y+4, W, H);
+        if (!cap||!cap.data) return null;
+        const data=cap.data, w=cap.width, h=cap.height;
 
-    function isY(px,py) {
-      if(px<0||px>=w||py<0||py>=h) return false;
-      const i=(py*w+px)*4;
-      return data[i]>180 && data[i+1]>180 && data[i+2]<130;
-    }
-
-    // Build column profile
-    const cols=[];
-    for (let px=0; px<w; px++) {
-      let cnt=0;
-      for (let py=0; py<h; py++) { if(isY(px,py)) cnt++; }
-      cols.push(cnt);
-    }
-
-    // Segment into digit groups
-    const segs=[];
-    let inSeg=false, segStart=0;
-    for (let px=0; px<w; px++) {
-      if(cols[px]>0 && !inSeg) { inSeg=true; segStart=px; }
-      else if(cols[px]===0 && inSeg) { segs.push({s:segStart,e:px-1}); inSeg=false; }
-    }
-    if(inSeg) segs.push({s:segStart,e:w-1});
-
-    if(!segs.length) { console.log(`readNumberAt(${x},${y}): no pixels → 0`); return 0; }
-
-    let numStr="";
-    for (const seg of segs) {
-      const sw=seg.e-seg.s+1;
-      if(sw<=1) continue; // skip noise
-
-      // Extract pixel grid for this segment (normalise to 8 rows)
-      // Find actual top and bottom rows with pixels
-      let topRow=h, botRow=-1;
-      for (let py=0; py<h; py++) {
-        for (let px=seg.s; px<=seg.e; px++) {
-          if(isY(px,py)) { if(py<topRow) topRow=py; if(py>botRow) botRow=py; }
+        function isY(px,py) {
+          if(px<0||px>=w||py<0||py>=h) return false;
+          const i=(py*w+px)*4;
+          return isGold(data[i],data[i+1],data[i+2]);
         }
+
+        // Build column profile
+        const cols=[];
+        for (let px=0; px<w; px++) {
+          let cnt=0;
+          for (let py=0; py<h; py++) { if(isY(px,py)) cnt++; }
+          cols.push(cnt);
+        }
+
+        // Segment into digit groups
+        const segs=[];
+        let inSeg=false, segStart=0;
+        for (let px=0; px<w; px++) {
+          if(cols[px]>0 && !inSeg) { inSeg=true; segStart=px; }
+          else if(cols[px]===0 && inSeg) { segs.push({s:segStart,e:px-1}); inSeg=false; }
+        }
+        if(inSeg) segs.push({s:segStart,e:w-1});
+
+        if(!segs.length) { console.log(`readNumberAt(${x},${y}): no pixels → 0`); return 0; }
+
+        let numStr="";
+        for (const seg of segs) {
+          const sw=seg.e-seg.s+1;
+          if(sw<=1) continue;
+
+          // Find actual top and bottom rows with pixels
+          let topRow=h, botRow=-1;
+          for (let py=0; py<h; py++)
+            for (let px=seg.s; px<=seg.e; px++)
+              if(isY(px,py)) { if(py<topRow) topRow=py; if(py>botRow) botRow=py; }
+
+          const dh=botRow-topRow+1;
+          const midRow=Math.round(topRow+dh*0.45);
+
+          // Count pixels on key rows and columns
+          let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
+          let midBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,midRow)) midBar++;
+          let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
+          let leftCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
+          let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
+
+          // Corner pixels
+          const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
+          const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
+          const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
+          const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
+
+          // Total density
+          const totalPx=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0);
+          const density=totalPx/(sw*dh);
+
+          let digit="?";
+
+          // Width-based: narrow = 1
+          if(sw<=3) {
+            digit="1";
+          }
+          // 7: strong top bar, weak/no mid, weak bot, tapers right
+          else if(topBar>=3 && midBar<=1 && botBar<=1) {
+            digit="7";
+          }
+          // 8: mid bar + full left + full right (dense)
+          else if(midBar>=2 && leftCnt>=4 && rightCnt>=4) {
+            digit="8";
+          }
+          // 0: no mid bar, full left+right
+          else if(midBar<=1 && leftCnt>=3 && rightCnt>=3) {
+            digit="0";
+          }
+          // 9: mid bar, strong right, top-left present, bot-right present, no bottom-left
+          else if(midBar>=2 && rightCnt>=5 && tl && !bl) {
+            digit="9";
+          }
+          // 4: mid bar, full left+right, weak top bar
+          else if(midBar>=2 && leftCnt>=3 && rightCnt>=3 && topBar<=2) {
+            digit="4";
+          }
+          // 3: mid bar, strong right, weak left
+          else if(midBar>=2 && rightCnt>=4 && leftCnt<=2) {
+            digit="3";
+          }
+          // 6: mid bar, strong left, weak right top
+          else if(midBar>=2 && leftCnt>=4 && !tr) {
+            digit="6";
+          }
+          // 5: mid bar, top-left, bot-right
+          else if(midBar>=2 && tl && br && !tr) {
+            digit="5";
+          }
+          // 2: mid bar, top-right, bot-left
+          else if(midBar>=2 && tr && bl) {
+            digit="2";
+          }
+          else {
+            digit="0";
+          }
+
+          console.log(`  seg x${seg.s}-${seg.e} w=${sw} top=${topBar} mid=${midBar} bot=${botBar} L=${leftCnt} R=${rightCnt} tl=${tl} bl=${bl} tr=${tr} br=${br} d=${density.toFixed(2)} → ${digit}`);
+          numStr+=digit;
+        }
+
+        const n=parseInt(numStr);
+        console.log(`readNumberAt(${x},${y}): str="${numStr}" n=${n}`);
+        return isNaN(n)?null:n;
+      } catch(e) {
+        console.log("readNumberAt error:",e);
+        return null;
       }
-      const dh=botRow-topRow+1;
-      const midRow=Math.round(topRow+dh*0.45);
-
-      // Check key pixel positions
-      // Top bar: pixels across top row
-      let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
-      // Mid bar: pixels across middle row  
-      let midBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,midRow)) midBar++;
-      // Bot bar: pixels across bottom row
-      let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
-      // Left side: left column pixels
-      let leftCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
-      // Right side: right column pixels
-      let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
-      // Top-left pixel
-      const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
-      // Bottom-left pixel
-      const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
-      // Top-right pixel
-      const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
-      // Bottom-right pixel
-      const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
-
-      const hasTop=topBar>=2;
-      const hasMid=midBar>=2;
-      const hasBot=botBar>=2;
-      const hasLeft=leftCnt>=3;
-      const hasRight=rightCnt>=3;
-      const density=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0)/(sw*dh);
-
-      let digit="?";
-      if(sw<=3) {
-        digit="1";
-      } else if(!hasMid && !hasBot && hasTop) {
-        digit="7";
-      } else if(hasMid && !hasLeft && hasRight && !bl) {
-        digit="3";
-      } else if(!hasTop && hasMid && hasRight) {
-        digit="4";
-      } else if(hasMid && hasLeft && !hasRight && br) {
-        digit="6";
-      } else if(hasMid && !hasLeft && !br && tr) {
-        digit="9";
-      } else if(hasMid && hasLeft && !br && !tr && tl) {
-        digit="5";
-      } else if(hasTop && hasBot && !hasMid) {
-        digit="0";
-      } else if(density>0.55) {
-        digit="8";
-      } else if(hasTop && hasBot && bl && !br) {
-        digit="2";
-      } else {
-        digit="0";
-      }
-
-      console.log(`  seg x${seg.s}-${seg.e} w=${sw} top=${topBar} mid=${midBar} bot=${botBar} L=${leftCnt} R=${rightCnt} tl=${tl} bl=${bl} tr=${tr} br=${br} → ${digit}`);
-      numStr+=digit;
     }
-
-    const n=parseInt(numStr);
-    console.log(`readNumberAt(${x},${y}): str="${numStr}" n=${n}`);
-    return isNaN(n)?null:n;
-  } catch(e) {
-    console.log("readNumberAt error:",e);
-    return null;
-  }
-}
 
     async function performScan(startIdx, endIdx, label, useOffsetY) {
       const out=document.getElementById("ocr-out");
