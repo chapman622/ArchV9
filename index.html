@@ -181,7 +181,7 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="btn-show-tuners">⚙ Tuners</button>
-      <button class="btn pri" id="btn-scan-top">📸 Scan Top</button>
+        <button class="btn pri" id="btn-scan-top">📸 Scan Top</button>
         <button class="btn pri" id="btn-scan-bottom">📸 Scan Bottom</button>
         <button class="btn" id="btn-manual-ocr">✏ Manual Paste</button>
       </div>
@@ -200,6 +200,7 @@
           <button class="btn suc" id="t-rescan-bot" style="font-size:9px;padding:2px 5px">▶ Re-Scan Bottom</button>
           <button class="btn" id="t-preview-top" style="font-size:9px;padding:2px 5px">👁 Preview Top Boxes</button>
           <button class="btn" id="t-preview-bot" style="font-size:9px;padding:2px 5px">👁 Preview Bottom Boxes</button>
+          <button class="btn" id="t-debug-px" style="font-size:9px;padding:2px 5px">🔬 Debug Pixels</button>
         </div>
         <div style="font-size:9px;color:var(--muted);margin-top:4px">Blue = icon area. Green = number read zone. Tune until aligned.</div>
       </div>
@@ -365,10 +366,28 @@
     }
     document.getElementById("t-preview-top").addEventListener("click", ()=>previewBoxes(0,19,offsetY));
     document.getElementById("t-preview-bot").addEventListener("click", ()=>previewBoxes(20,39,offsetY2));
+    document.getElementById("t-debug-px").addEventListener("click", ()=>{
+      if (!storedWinX||!storedWinY) { document.getElementById("ocr-out").textContent="Locate window first."; return; }
+      const x=storedWinX+offsetX, y=storedWinY+offsetY;
+      const W=44, H=20;
+      const cap=A1lib.capture(x, y+4, W, H);
+      const data=cap.data, w=cap.width, h=cap.height;
+      let map="Pixel map (Y rows, X cols) — Y=yellow, .=dark:\n";
+      for (let py=0; py<h; py++) {
+        let row=`y${py}: `;
+        for (let px=0; px<w; px++) {
+          const i=(py*w+px)*4;
+          row += isGold(data[i],data[i+1],data[i+2]) ? "Y" : ".";
+        }
+        map+=row+"\n";
+      }
+      console.log(map);
+      document.getElementById("ocr-out").textContent=map;
+    });
 
     function isGold(r,g,b) {
-      // RS3 numbers are bright yellow: R~255, G~255, B~0
-      return r>180 && g>180 && b<80;
+      // RS3 numbers are bright yellow: R~255, G~255, B~0-130
+      return r>180 && g>180 && b<130;
     }
 
     function readNumberAt(x, y) {
@@ -384,7 +403,7 @@
           return isGold(data[i],data[i+1],data[i+2]);
         }
 
-        // Build column profile
+        // Build column pixel counts
         const cols=[];
         for (let px=0; px<w; px++) {
           let cnt=0;
@@ -392,7 +411,7 @@
           cols.push(cnt);
         }
 
-        // Segment into digit groups
+        // Segment into digit groups (gap = empty column)
         const segs=[];
         let inSeg=false, segStart=0;
         for (let px=0; px<w; px++) {
@@ -406,9 +425,9 @@
         let numStr="";
         for (const seg of segs) {
           const sw=seg.e-seg.s+1;
-          if(sw<=1) continue;
+          if(sw<=1) continue; // skip noise/commas
 
-          // Find actual top and bottom rows with pixels
+          // Find actual top/bottom rows with pixels in this segment
           let topRow=h, botRow=-1;
           for (let py=0; py<h; py++)
             for (let px=seg.s; px<=seg.e; px++)
@@ -417,66 +436,56 @@
           const dh=botRow-topRow+1;
           const midRow=Math.round(topRow+dh*0.45);
 
-          // Count pixels on key rows and columns
+          // Bar counts
           let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
           let midBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,midRow)) midBar++;
           let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
-          let leftCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
+          // Side counts
+          let leftCnt=0;  for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
           let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
-
           // Corner pixels
           const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
           const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
           const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
           const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
-
-          // Total density
+          // Density
           const totalPx=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0);
           const density=totalPx/(sw*dh);
 
           let digit="?";
 
-          // Width-based: narrow = 1
           if(sw<=3) {
+            // Narrow = 1
             digit="1";
-          }
-          // 7: strong top bar, weak/no mid, weak bot, tapers right
-          else if(topBar>=3 && midBar<=1 && botBar<=1) {
+          } else if(topBar>=3 && midBar<=1 && botBar<=1) {
+            // Strong top only, no mid/bot = 7
             digit="7";
-          }
-          // 8: mid bar + full left + full right (dense)
-          else if(midBar>=2 && leftCnt>=4 && rightCnt>=4) {
+          } else if(density>=0.44) {
+            // Very dense = 8 (density ~0.47 vs 0 ~0.35/0.38/0.41)
             digit="8";
-          }
-          // 0: no mid bar, full left+right
-          else if(midBar<=1 && leftCnt>=3 && rightCnt>=3) {
-            digit="0";
-          }
-          // 9: mid bar, strong right, top-left present, bot-right present, no bottom-left
-          else if(midBar>=2 && rightCnt>=5 && tl && !bl) {
-            digit="9";
-          }
-          // 4: mid bar, full left+right, weak top bar
-          else if(midBar>=2 && leftCnt>=3 && rightCnt>=3 && topBar<=2) {
-            digit="4";
-          }
-          // 3: mid bar, strong right, weak left
-          else if(midBar>=2 && rightCnt>=4 && leftCnt<=2) {
-            digit="3";
-          }
-          // 6: mid bar, strong left, weak right top
-          else if(midBar>=2 && leftCnt>=4 && !tr) {
-            digit="6";
-          }
-          // 5: mid bar, top-left, bot-right
-          else if(midBar>=2 && tl && br && !tr) {
-            digit="5";
-          }
-          // 2: mid bar, top-right, bot-left
-          else if(midBar>=2 && tr && bl) {
+          } else if(midBar<=1 && !br) {
+            // No mid bar, no bottom-right = 2 (bottom heavy open shape)
             digit="2";
-          }
-          else {
+          } else if(midBar<=1 && br) {
+            // No mid bar, bottom-right present = 3 (right side open top&bot)
+            digit="3";
+          } else if(midBar>=2 && rightCnt>=5 && tl && !bl) {
+            // Mid bar, strong right, top-left, no bot-left = 9
+            digit="9";
+          } else if(midBar>=2 && leftCnt>=5 && botBar>=2) {
+            // Mid bar, strong left, full bottom = 6
+            digit="6";
+          } else if(midBar>=2 && leftCnt>=5 && !botBar) {
+            // Mid bar, strong left, no bottom bar = 4
+            digit="4";
+          } else if(midBar>=2 && tl && br && !tr) {
+            // Mid bar, top-left+bot-right but no top-right = 5
+            digit="5";
+          } else if(midBar>=2 && tr && bl) {
+            // Mid bar, top-right + bot-left = 2
+            digit="2";
+          } else {
+            // Fallback: hollow = 0
             digit="0";
           }
 
