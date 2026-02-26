@@ -478,21 +478,20 @@
             // Strong top, no mid anywhere, no bot = 7
             digit="7";
           } else if(density<=0.36 && tl && bl && tr && br) {
-            // Low density, all 4 corners filled = 0 (hollow oval)
-            // Must come BEFORE density>=0.44 check since 0 is hollow
+            // Low density, all 4 corners = 0 (hollow oval)
             digit="0";
           } else if(tl && br && !tr && topBar>=3 && leftCnt>=4) {
-            // Strong top bar, top-left+bot-right, no top-right, strong left = 5
-            // 5 signature: top=4, tl=true, br=true, tr=false, L=5
-            // Check BEFORE density since 5 can be dense
+            // Strong top bar, tl+br, no tr, strong left = 5
             digit="5";
+          } else if(leftCnt>=5 && botBar>=2 && midBarMax>=2 && !tr) {
+            // Strong left side, full bottom bar, mid bar, no top-right = 6
+            // Catches dense 6 before density>=0.44 grabs it as 8
+            digit="6";
           } else if(density>=0.44) {
             // Very dense = 8
             digit="8";
           } else if(midBarMax<=1) {
-            // Weak mid signal — 2 or 3
-            // 3: right-heavy (R>=4, L<=3) with both top corners
-            // 2: left-leaning, no bottom-right
+            // Weak mid — 2 or 3 (right-heavy = 3)
             if(rightCnt>=4 && leftCnt<=3 && tr && br) {
               digit="3";
             } else {
@@ -501,19 +500,14 @@
           } else {
             // Strong mid bar
             if(rightCnt>=5 && tl && !bl) {
-              // Strong right side, top-left corner, no bot-left = 9
               digit="9";
             } else if(leftCnt>=5 && botBar>=2) {
-              // Strong left, full bottom bar = 6
               digit="6";
             } else if(leftCnt>=5 && botBar<=1) {
-              // Strong left, weak/no bottom bar = 4
               digit="4";
             } else if(rightCnt>=4 && leftCnt<=3) {
-              // Right-heavy with mid bar = 3
               digit="3";
             } else if(tr && bl) {
-              // Top-right + bot-left = 2
               digit="2";
             } else {
               digit="0";
