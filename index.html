@@ -632,14 +632,14 @@
 
     function renderMats() {
       const tb=document.getElementById("mat-tbody"); tb.innerHTML="";
-      const allMats=Object.keys(S.counts).map(name=>{
+      const allMats=STORAGE_ORDER.map(name=>{
         const mat=MATS.find(m=>m.name===name);
         return {name, lv:mat?mat.lv:"—", c:mat?mat.c:"Unknown", have:S.counts[name]||0, goal:S.goals[name]||0};
       }).filter(mat=>{
         const q=document.getElementById("search-box").value.toLowerCase();
         const c=document.getElementById("filter-culture").value;
-        return (!c||mat.c===c||mat.c==="Unknown")&&(!q||mat.name.toLowerCase().includes(q));
-      }).sort((a,b)=>a.name.localeCompare(b.name));
+        return (!c||mat.c===c)&&(!q||mat.name.toLowerCase().includes(q));
+      });
       allMats.forEach(mat=>{
         const pct=mat.goal>0?Math.min(100,Math.round(mat.have/mat.goal*100)):(mat.have>0?100:0);
         const cls=mat.goal>0?(pct>=100?"full":pct>=50?"mid":"low"):"low";
