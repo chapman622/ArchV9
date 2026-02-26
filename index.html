@@ -200,6 +200,7 @@
           <button class="btn suc" id="t-rescan-bot" style="font-size:9px;padding:2px 5px">▶ Re-Scan Bottom</button>
           <button class="btn" id="t-preview-top" style="font-size:9px;padding:2px 5px">👁 Preview Top Boxes</button>
           <button class="btn" id="t-preview-bot" style="font-size:9px;padding:2px 5px">👁 Preview Bottom Boxes</button>
+          <button class="btn" id="t-debug-px" style="font-size:9px;padding:2px 5px">🔬 Debug Pixels</button>
         </div>
         <div style="font-size:9px;color:var(--muted);margin-top:4px">Blue = icon area. Green = number read zone. Tune until aligned.</div>
       </div>
@@ -365,6 +366,25 @@
     }
     document.getElementById("t-preview-top").addEventListener("click", ()=>previewBoxes(0,19,offsetY));
     document.getElementById("t-preview-bot").addEventListener("click", ()=>previewBoxes(20,39,offsetY2));
+    document.getElementById("t-debug-px").addEventListener("click", ()=>{
+      if (!storedWinX||!storedWinY) return;
+      const x=storedWinX+offsetX, y=storedWinY+offsetY;
+      const W=44, H=20;
+      const cap=A1lib.capture(x, y-8, W, H);
+      const data=cap.data, w=cap.width, h=cap.height;
+      let map="Pixel map (Y rows, X cols) — Y=yellow, .=dark:\n";
+      for (let py=0; py<h; py++) {
+        let row=`y${py}: `;
+        for (let px=0; px<w; px++) {
+          const i=(py*w+px)*4;
+          const r=data[i],g=data[i+1],b=data[i+2];
+          row += (r>180&&g>180&&b<130) ? "Y" : ".";
+        }
+        map+=row+"\n";
+      }
+      console.log(map);
+      document.getElementById("ocr-out").textContent=map;
+    });
 
     function isGold(r,g,b) {
       // RS3 numbers are bright yellow: R~255, G~255, B~0
