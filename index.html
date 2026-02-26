@@ -392,100 +392,117 @@
     }
 
     function readNumberAt(x, y) {
-      try {
-        const W=44, H=14;
-        const cap=A1lib.capture(x, y+8, W, H);
-        if (!cap||!cap.data) return null;
-        const data=cap.data, w=cap.width, h=cap.height;
+  try {
+    const W=44, H=20;
+    const cap=A1lib.capture(x, y+4, W, H);
+    if (!cap||!cap.data) return null;
+    const data=cap.data, w=cap.width, h=cap.height;
 
-        // Find columns with gold pixels
-        const cols=[];
-        for (let px=0; px<w; px++) {
-          let hasGold=false;
-          for (let py=0; py<h; py++) {
-            const i=(py*w+px)*4;
-            if (isGold(data[i],data[i+1],data[i+2])) { hasGold=true; break; }
-          }
-          cols.push(hasGold);
-        }
-
-        // Group into segments
-        const segments=[];
-        let inSeg=false, segStart=0;
-        for (let px=0; px<w; px++) {
-          if (cols[px]&&!inSeg) { inSeg=true; segStart=px; }
-          else if (!cols[px]&&inSeg) { segments.push({start:segStart,width:px-segStart}); inSeg=false; }
-        }
-        if (inSeg) segments.push({start:segStart,width:w-segStart});
-
-        if (!segments.length) { console.log(`readNumberAt(${x},${y}): no gold pixels → 0`); return 0; }
-
-        let numStr="";
-        for (const seg of segments) {
-          if (seg.width<=2) continue; // skip comma/noise
-
-          // Count gold pixels per column in this segment
-          const profile=[];
-          for (let px=seg.start; px<seg.start+seg.width; px++) {
-            let cnt=0;
-            for (let py=0; py<h; py++) {
-              const i=(py*w+px)*4;
-              if (isGold(data[i],data[i+1],data[i+2])) cnt++;
-            }
-            profile.push(cnt);
-          }
-
-          const sw=seg.width;
-          const totalPx=profile.reduce((a,b)=>a+b,0);
-          const avgH=totalPx/sw;
-          const midStart=Math.floor(sw*0.25), midEnd=Math.ceil(sw*0.75);
-          const midPx=profile.slice(midStart,midEnd).reduce((a,b)=>a+b,0);
-          const midAvg=midPx/Math.max(1,midEnd-midStart);
-          const leftPx=profile.slice(0,Math.ceil(sw/2)).reduce((a,b)=>a+b,0);
-          const rightPx=profile.slice(Math.floor(sw/2)).reduce((a,b)=>a+b,0);
-          // Top/bottom rows
-          let topPx=0, botPx=0;
-          for (let px=seg.start; px<seg.start+sw; px++) {
-            const ti=(0*w+px)*4, bi=((h-1)*w+px)*4;
-            if (isGold(data[ti],data[ti+1],data[ti+2])) topPx++;
-            if (isGold(data[bi],data[bi+1],data[bi+2])) botPx++;
-          }
-
-          let digit="?";
-          if (sw<=4) {
-            digit="1";
-          } else if (midAvg<1.0 && avgH>2) {
-            digit="0"; // hollow middle = 0
-          } else if (avgH>=6) {
-            digit="8"; // very dense
-          } else if (topPx<1 && botPx>=1) {
-            digit="2"; // top open, curves down
-          } else if (topPx>=1 && botPx<1) {
-            digit="9"; // bottom open
-          } else if (leftPx>rightPx*1.5) {
-            digit="4";
-          } else if (rightPx>leftPx*1.3 && midAvg<2.5) {
-            digit="7";
-          } else if (avgH>4 && leftPx>=rightPx) {
-            digit="6";
-          } else if (avgH>3.5) {
-            digit="3";
-          } else if (leftPx>rightPx) {
-            digit="5";
-          } else {
-            digit="2";
-          }
-          numStr+=digit;
-        }
-
-        const n=parseInt(numStr);
-        console.log(`readNumberAt(${x},${y}): segs=${segments.length} str="${numStr}" n=${n} | segments:`, segments.map(s=>s.width));
-        return isNaN(n)?null:n;
-      } catch(e) {
-        console.log("readNumberAt error:",e);
-        return null;
-      }
+    function isY(px,py) {
+      if(px<0||px>=w||py<0||py>=h) return false;
+      const i=(py*w+px)*4;
+      return data[i]>180 && data[i+1]>180 && data[i+2]<130;
     }
+
+    // Build column profile
+    const cols=[];
+    for (let px=0; px<w; px++) {
+      let cnt=0;
+      for (let py=0; py<h; py++) { if(isY(px,py)) cnt++; }
+      cols.push(cnt);
+    }
+
+    // Segment into digit groups
+    const segs=[];
+    let inSeg=false, segStart=0;
+    for (let px=0; px<w; px++) {
+      if(cols[px]>0 && !inSeg) { inSeg=true; segStart=px; }
+      else if(cols[px]===0 && inSeg) { segs.push({s:segStart,e:px-1}); inSeg=false; }
+    }
+    if(inSeg) segs.push({s:segStart,e:w-1});
+
+    if(!segs.length) { console.log(`readNumberAt(${x},${y}): no pixels → 0`); return 0; }
+
+    let numStr="";
+    for (const seg of segs) {
+      const sw=seg.e-seg.s+1;
+      if(sw<=1) continue; // skip noise
+
+      // Extract pixel grid for this segment (normalise to 8 rows)
+      // Find actual top and bottom rows with pixels
+      let topRow=h, botRow=-1;
+      for (let py=0; py<h; py++) {
+        for (let px=seg.s; px<=seg.e; px++) {
+          if(isY(px,py)) { if(py<topRow) topRow=py; if(py>botRow) botRow=py; }
+        }
+      }
+      const dh=botRow-topRow+1;
+      const midRow=Math.round(topRow+dh*0.45);
+
+      // Check key pixel positions
+      // Top bar: pixels across top row
+      let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
+      // Mid bar: pixels across middle row  
+      let midBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,midRow)) midBar++;
+      // Bot bar: pixels across bottom row
+      let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
+      // Left side: left column pixels
+      let leftCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
+      // Right side: right column pixels
+      let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
+      // Top-left pixel
+      const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
+      // Bottom-left pixel
+      const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
+      // Top-right pixel
+      const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
+      // Bottom-right pixel
+      const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
+
+      const hasTop=topBar>=2;
+      const hasMid=midBar>=2;
+      const hasBot=botBar>=2;
+      const hasLeft=leftCnt>=3;
+      const hasRight=rightCnt>=3;
+      const density=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0)/(sw*dh);
+
+      let digit="?";
+      if(sw<=3) {
+        digit="1";
+      } else if(!hasMid && !hasBot && hasTop) {
+        digit="7";
+      } else if(hasMid && !hasLeft && hasRight && !bl) {
+        digit="3";
+      } else if(!hasTop && hasMid && hasRight) {
+        digit="4";
+      } else if(hasMid && hasLeft && !hasRight && br) {
+        digit="6";
+      } else if(hasMid && !hasLeft && !br && tr) {
+        digit="9";
+      } else if(hasMid && hasLeft && !br && !tr && tl) {
+        digit="5";
+      } else if(hasTop && hasBot && !hasMid) {
+        digit="0";
+      } else if(density>0.55) {
+        digit="8";
+      } else if(hasTop && hasBot && bl && !br) {
+        digit="2";
+      } else {
+        digit="0";
+      }
+
+      console.log(`  seg x${seg.s}-${seg.e} w=${sw} top=${topBar} mid=${midBar} bot=${botBar} L=${leftCnt} R=${rightCnt} tl=${tl} bl=${bl} tr=${tr} br=${br} → ${digit}`);
+      numStr+=digit;
+    }
+
+    const n=parseInt(numStr);
+    console.log(`readNumberAt(${x},${y}): str="${numStr}" n=${n}`);
+    return isNaN(n)?null:n;
+  } catch(e) {
+    console.log("readNumberAt error:",e);
+    return null;
+  }
+}
 
     async function performScan(startIdx, endIdx, label, useOffsetY) {
       const out=document.getElementById("ocr-out");
