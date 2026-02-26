@@ -735,7 +735,6 @@
 
         let foundY=-1, foundLeft=-1, foundRight=-1;
         for (let y=0; y<H && foundY===-1; y++) {
-          // Collect all runs on this row
           const runs=[];
           let runStart=-1;
           for (let x=0; x<W; x++) {
@@ -745,10 +744,8 @@
             if (!match && runStart!==-1) { runs.push({x:runStart,len:x-runStart}); runStart=-1; }
           }
           if (runStart!==-1) runs.push({x:runStart,len:W-runStart});
-          // Filter to significant runs only (>50px) and sum total length
           const sigRuns=runs.filter(r=>r.len>=50);
           const totalLen=sigRuns.reduce((a,r)=>a+r.len,0);
-          // Title bar should have 400+ px of matching colour total
           if (sigRuns.length>=1 && totalLen>=400) {
             foundY=y;
             foundLeft=sigRuns[0].x;
@@ -763,7 +760,6 @@
           return;
         }
 
-        // Title bar spans full window width (500px), centre it
         const winX = foundLeft - 9;
         const winY = foundY + 3;
 
@@ -867,17 +863,16 @@
         const hdr=document.createElement("div"); hdr.className="site-hdr"; hdr.textContent=se[0]; scroll.appendChild(hdr);
         se[1].sort((a,b)=>a.lv-b.lv).forEach(art=>{
           const can=canRestore(art);
-          const matRows=Object.entries(art.mats).map(me=>{
-            if(!isMat(me[0])) {
-              return `<div class='mr'><span class='cdot' style='background:#555'></span><span>${me[0]}</span><span class='need' style='color:var(--muted)'>×${me[1]} (not tracked)</span></div>`;
-            }
+          const untracked=Object.entries(art.mats).filter(me=>!isMat(me[0]));
+          const matRows=Object.entries(art.mats).filter(me=>isMat(me[0])).map(me=>{
             const have=S.counts[me[0]]||0, ok=have>=me[1];
             return `<div class='mr ${ok?"ok":"bad"}'><span class='cdot' style='background:${CULTURE_COL[matCulture(me[0])]}'></span><span>${me[0]}</span><span class='need'><span class='have'>${have.toLocaleString()}</span> / ${me[1]}</span></div>`;
           }).join("");
           const card=document.createElement("div"); card.className="art-card";
           const noteHtml=art.note?`<div class='art-note'>${art.note}</div>`:"";
+          const untrackedHtml=untracked.length?`<div class='art-note'>Requires ${untracked.map(me=>`${me[0]} ×${me[1]}`).join(", ")}</div>`:"";
           card.innerHTML=`<div class='art-head'><span class='art-name'>${art.name}</span><span class='art-lvl'>Lv ${art.lv}</span><span class='art-xp'>${art.xp.toLocaleString()} xp</span></div>
-            ${noteHtml}${matRows}<div class='art-footer'><span class='${can?"art-can":"art-cant"}'>${can?"✔ Can restore":"✖ Missing mats"}</span>
+            ${noteHtml}${untrackedHtml}${matRows}<div class='art-footer'><span class='${can?"art-can":"art-cant"}'>${can?"✔ Can restore":"✖ Missing mats"}</span>
             ${can?`<button class='btn suc' style='font-size:9px;padding:2px 6px' data-restore='${art.name}'>Restore →</button>`:""}</div>`;
           scroll.appendChild(card);
         });
