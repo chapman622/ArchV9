@@ -394,7 +394,7 @@
     function readNumberAt(x, y) {
       try {
         const W=44, H=14;
-        const cap=A1lib.capture(x, y-4, W, H);
+        const cap=A1lib.capture(x, y+8, W, H);
         if (!cap||!cap.data) return null;
         const data=cap.data, w=cap.width, h=cap.height;
 
