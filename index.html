@@ -190,7 +190,7 @@
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:9px;color:var(--muted);margin-bottom:4px">
           offX:<input class="tin" id="t-ox" type="number" value="10">
           offY (top):<input class="tin" id="t-oy" type="number" value="66">
-          offY (bottom):<input class="tin" id="t-oy2" type="number" value="78">
+          offY (bottom):<input class="tin" id="t-oy2" type="number" value="-132">
           step (horiz):<input class="tin" id="t-step" type="number" value="46">
           row (vert):<input class="tin" id="t-row" type="number" value="70">
           icon px:<input class="tin" id="t-icon" type="number" value="42">
@@ -313,11 +313,11 @@
     let storedWinY = parseInt(localStorage.getItem("archStorageWinY")) || null;
     let storedWinWidth = parseInt(localStorage.getItem("archStorageWinWidth")) || 500;
     let storedWinHeight = parseInt(localStorage.getItem("archStorageWinHeight")) || 342;
-    let offsetX=10, offsetY=66, offsetY2=78, horizStep=46, rowStep=70, iconSize=42;
+    let offsetX=10, offsetY=66, offsetY2=-132, horizStep=46, rowStep=70, iconSize=42;
 
     function loadTuners() {
       const s = JSON.parse(localStorage.getItem("archOcrTuners") || "{}");
-      offsetX=s.offsetX??10; offsetY=s.offsetY??66; offsetY2=s.offsetY2??78;
+      offsetX=s.offsetX??10; offsetY=s.offsetY??66; offsetY2=s.offsetY2??-132;
       horizStep=s.horizStep??46; rowStep=s.rowStep??70; iconSize=s.iconSize??42;
       document.getElementById("t-ox").value=offsetX;
       document.getElementById("t-oy").value=offsetY;
@@ -402,7 +402,6 @@
           return isGold(data[i],data[i+1],data[i+2]);
         }
 
-        // Build column pixel counts
         const cols=[];
         for (let px=0; px<w; px++) {
           let cnt=0;
@@ -410,7 +409,6 @@
           cols.push(cnt);
         }
 
-        // Segment into digit groups
         const segs=[];
         let inSeg=false, segStart=0;
         for (let px=0; px<w; px++) {
@@ -426,7 +424,6 @@
           const sw=seg.e-seg.s+1;
           if(sw<=1) continue;
 
-          // Find actual top/bottom rows
           let topRow=h, botRow=-1;
           for (let py=0; py<h; py++)
             for (let px=seg.s; px<=seg.e; px++)
@@ -434,8 +431,6 @@
 
           const dh=botRow-topRow+1;
 
-          // Sample mid bar at THREE positions and take the max
-          // This prevents landing in the hollow centre of '0'
           const midRow1=Math.round(topRow+dh*0.35);
           const midRow2=Math.round(topRow+dh*0.45);
           const midRow3=Math.round(topRow+dh*0.55);
@@ -445,61 +440,44 @@
             if(isY(px,midRow2)) mb2++;
             if(isY(px,midRow3)) mb3++;
           }
-          // Use the MINIMUM mid sample — if all three are non-zero, there's a real mid bar
-          // If ANY sample is 0, the "mid bar" might just be the sides of an O shape
           const midBar = Math.min(mb1, mb2, mb3);
-          // Also use max for a softer check
           const midBarMax = Math.max(mb1, mb2, mb3);
 
-          // Bar counts at true top/bottom
           let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
           let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
 
-          // Side counts
           let leftCnt=0;  for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
           let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
 
-          // Corner pixels
           const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
           const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
           const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
           const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
 
-          // Density
           const totalPx=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0);
           const density=totalPx/(sw*dh);
 
           let digit="?";
 
           if(sw<=3) {
-            // Narrow = 1
             digit="1";
           } else if(topBar>=3 && midBarMax<=1 && botBar<=1) {
-            // Strong top, no mid anywhere, no bot = 7
             digit="7";
           } else if(density<=0.36 && tl && bl && tr && br) {
-            // Low density, all 4 corners = 0 (hollow oval)
             digit="0";
           } else if(tl && br && !tr && topBar>=3 && leftCnt>=4) {
-            // Strong top bar, tl+br, no tr, strong left = 5
             digit="5";
           } else if(leftCnt>=5 && botBar>=2 && midBarMax>=2 && topBar<=2) {
-            // Strong left, heavy bottom, mid bar, weak top = 6
-            // 6: top=2, bot=3, L=5 vs 8: top=3, bot=3, L=5 R=5
-            // topBar<=2 is the key differentiator from 8
             digit="6";
           } else if(density>=0.44) {
-            // Very dense = 8
             digit="8";
           } else if(midBarMax<=1) {
-            // Weak mid — 2 or 3 (right-heavy = 3)
             if(rightCnt>=4 && leftCnt<=3 && tr && br) {
               digit="3";
             } else {
               digit = br ? "3" : "2";
             }
           } else {
-            // Strong mid bar
             if(rightCnt>=5 && tl && !bl) {
               digit="9";
             } else if(leftCnt>=5 && botBar>=2) {
