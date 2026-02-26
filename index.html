@@ -354,8 +354,8 @@
           const idx=storageIdx+slot;
           if (idx>=STORAGE_ORDER.length) break;
           const iconX=absX+offsetX+(slot*horizStep);
-          alt1.overLayRect(A1lib.mixColor(80,180,255), iconX, iconTop, iconSize, iconSize+14, 8000, 2);
           if (idx>=startIdx && idx<=endIdx) {
+            alt1.overLayRect(A1lib.mixColor(80,180,255), iconX, iconTop, iconSize, iconSize+14, 8000, 2);
             alt1.overLayRect(A1lib.mixColor(0,255,0), iconX, numY-4, iconSize, 18, 8000, 2);
           }
         }
