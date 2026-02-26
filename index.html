@@ -570,7 +570,7 @@
         const W = data.width, H = data.height;
 
         function isTitleColour(r,g,b) {
-          return Math.abs(r-154)<=20 && Math.abs(g-126)<=20 && Math.abs(b-78)<=20;
+          return Math.abs(r-154)<=10 && Math.abs(g-126)<=10 && Math.abs(b-78)<=10;
         }
 
         let foundY=-1, foundLeft=-1, foundRight=-1;
@@ -608,8 +608,7 @@
         }
 
         // Title bar spans full window width (500px), centre it
-        const titleCentreX = (foundLeft + foundRight) / 2;
-        const winX = Math.round(titleCentreX - 250);
+        const winX = foundLeft;
         const winY = foundY - 15;
 
         storedWinX=winX; storedWinY=winY; storedWinWidth=500; storedWinHeight=342;
