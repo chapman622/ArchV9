@@ -565,7 +565,7 @@
       status.textContent="Searching..."; status.style.color="var(--muted)";
       btn.disabled=true;
       try {
-        const img = await A1lib.loadImageUrl("matstore_title.png");
+        const img = await A1lib.ImageDetect.imageDataFromUrl("matstore_title.png");
         const found = A1lib.captureHoldFullRs().findSubimage(img);
         if (!found || found.length===0) {
           status.textContent="Not found — is Material Storage open?";
