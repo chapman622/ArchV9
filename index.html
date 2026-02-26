@@ -483,9 +483,10 @@
           } else if(tl && br && !tr && topBar>=3 && leftCnt>=4) {
             // Strong top bar, tl+br, no tr, strong left = 5
             digit="5";
-          } else if(leftCnt>=5 && botBar>=2 && midBarMax>=2 && !tr) {
-            // Strong left side, full bottom bar, mid bar, no top-right = 6
-            // Catches dense 6 before density>=0.44 grabs it as 8
+          } else if(leftCnt>=5 && botBar>=2 && midBarMax>=2 && topBar<=2) {
+            // Strong left, heavy bottom, mid bar, weak top = 6
+            // 6: top=2, bot=3, L=5 vs 8: top=3, bot=3, L=5 R=5
+            // topBar<=2 is the key differentiator from 8
             digit="6";
           } else if(density>=0.44) {
             // Very dense = 8
