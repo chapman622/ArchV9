@@ -180,7 +180,8 @@
         <span id="locate-status" style="font-size:9px;color:var(--muted)">Window not set</span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn pri" id="btn-scan-top">📸 Scan Top</button>
+        <button class="btn" id="btn-show-tuners">⚙ Tuners</button>
+      <button class="btn pri" id="btn-scan-top">📸 Scan Top</button>
         <button class="btn pri" id="btn-scan-bottom">📸 Scan Bottom</button>
         <button class="btn" id="btn-manual-ocr">✏ Manual Paste</button>
       </div>
@@ -367,7 +368,6 @@
 
     function isGold(r,g,b) {
       // RS3 numbers are bright yellow: R~255, G~255, B~0
-      // Allow some tolerance for compression/scaling
       return r>180 && g>180 && b<80;
     }
 
@@ -745,11 +745,18 @@
       });
     });
 
+    document.getElementById("btn-show-tuners").addEventListener("click", ()=>{
+      document.getElementById("tuner-wrap").style.display="block"; loadTuners();
+    });
     document.getElementById("btn-scan-top").addEventListener("click", ()=>{
-      document.getElementById("tuner-wrap").style.display="block"; loadTuners(); scanTop();
+      document.getElementById("tuner-wrap").style.display="block"; loadTuners();
+      if (!storedWinX||!storedWinY) { document.getElementById("ocr-out").textContent="Locate window first."; return; }
+      scanTop();
     });
     document.getElementById("btn-scan-bottom").addEventListener("click", ()=>{
-      document.getElementById("tuner-wrap").style.display="block"; loadTuners(); scanBottom();
+      document.getElementById("tuner-wrap").style.display="block"; loadTuners();
+      if (!storedWinX||!storedWinY) { document.getElementById("ocr-out").textContent="Locate window first."; return; }
+      scanBottom();
     });
     document.getElementById("btn-locate").addEventListener("click", startLocate);
 
