@@ -386,7 +386,6 @@
     });
 
     function isGold(r,g,b) {
-      // RS3 numbers are bright yellow: R~255, G~255, B~0-130
       return r>180 && g>180 && b<130;
     }
 
@@ -411,7 +410,7 @@
           cols.push(cnt);
         }
 
-        // Segment into digit groups (gap = empty column)
+        // Segment into digit groups
         const segs=[];
         let inSeg=false, segStart=0;
         for (let px=0; px<w; px++) {
@@ -425,29 +424,47 @@
         let numStr="";
         for (const seg of segs) {
           const sw=seg.e-seg.s+1;
-          if(sw<=1) continue; // skip noise/commas
+          if(sw<=1) continue;
 
-          // Find actual top/bottom rows with pixels in this segment
+          // Find actual top/bottom rows
           let topRow=h, botRow=-1;
           for (let py=0; py<h; py++)
             for (let px=seg.s; px<=seg.e; px++)
               if(isY(px,py)) { if(py<topRow) topRow=py; if(py>botRow) botRow=py; }
 
           const dh=botRow-topRow+1;
-          const midRow=Math.round(topRow+dh*0.45);
 
-          // Bar counts
+          // Sample mid bar at THREE positions and take the max
+          // This prevents landing in the hollow centre of '0'
+          const midRow1=Math.round(topRow+dh*0.35);
+          const midRow2=Math.round(topRow+dh*0.45);
+          const midRow3=Math.round(topRow+dh*0.55);
+          let mb1=0,mb2=0,mb3=0;
+          for(let px=seg.s;px<=seg.e;px++) {
+            if(isY(px,midRow1)) mb1++;
+            if(isY(px,midRow2)) mb2++;
+            if(isY(px,midRow3)) mb3++;
+          }
+          // Use the MINIMUM mid sample — if all three are non-zero, there's a real mid bar
+          // If ANY sample is 0, the "mid bar" might just be the sides of an O shape
+          const midBar = Math.min(mb1, mb2, mb3);
+          // Also use max for a softer check
+          const midBarMax = Math.max(mb1, mb2, mb3);
+
+          // Bar counts at true top/bottom
           let topBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,topRow)) topBar++;
-          let midBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,midRow)) midBar++;
           let botBar=0; for(let px=seg.s;px<=seg.e;px++) if(isY(px,botRow)) botBar++;
+
           // Side counts
           let leftCnt=0;  for(let py=topRow;py<=botRow;py++) if(isY(seg.s,py)) leftCnt++;
           let rightCnt=0; for(let py=topRow;py<=botRow;py++) if(isY(seg.e,py)) rightCnt++;
+
           // Corner pixels
           const tl=isY(seg.s,topRow+1)||isY(seg.s,topRow+2);
           const bl=isY(seg.s,botRow-1)||isY(seg.s,botRow-2);
           const tr=isY(seg.e,topRow+1)||isY(seg.e,topRow+2);
           const br=isY(seg.e,botRow-1)||isY(seg.e,botRow-2);
+
           // Density
           const totalPx=cols.slice(seg.s,seg.e+1).reduce((a,b)=>a+b,0);
           const density=totalPx/(sw*dh);
@@ -457,39 +474,38 @@
           if(sw<=3) {
             // Narrow = 1
             digit="1";
-          } else if(topBar>=3 && midBar<=1 && botBar<=1) {
-            // Strong top only, no mid/bot = 7
+          } else if(topBar>=3 && midBarMax<=1 && botBar<=1) {
+            // Strong top, no mid anywhere, no bot = 7
             digit="7";
           } else if(density>=0.44) {
-            // Very dense = 8 (density ~0.47 vs 0 ~0.35/0.38/0.41)
+            // Very dense = 8
             digit="8";
-          } else if(midBar<=1 && !br) {
-            // No mid bar, no bottom-right = 2 (bottom heavy open shape)
-            digit="2";
-          } else if(midBar<=1 && br) {
-            // No mid bar, bottom-right present = 3 (right side open top&bot)
-            digit="3";
-          } else if(midBar>=2 && rightCnt>=5 && tl && !bl) {
-            // Mid bar, strong right, top-left, no bot-left = 9
-            digit="9";
-          } else if(midBar>=2 && leftCnt>=5 && botBar>=2) {
-            // Mid bar, strong left, full bottom = 6
-            digit="6";
-          } else if(midBar>=2 && leftCnt>=5 && !botBar) {
-            // Mid bar, strong left, no bottom bar = 4
-            digit="4";
-          } else if(midBar>=2 && tl && br && !tr) {
-            // Mid bar, top-left+bot-right but no top-right = 5
-            digit="5";
-          } else if(midBar>=2 && tr && bl) {
-            // Mid bar, top-right + bot-left = 2
-            digit="2";
-          } else {
-            // Fallback: hollow = 0
+          } else if(midBar===0) {
+            // No true mid bar (hollow at all 3 sample points) = 0
+            // This catches 0 which has sides but hollow centre
             digit="0";
+          } else if(midBarMax<=1) {
+            // Weak mid signal — 2 or 3
+            // 2: no bottom-right corner; 3: has bottom-right
+            digit = br ? "3" : "2";
+          } else {
+            // Strong mid bar (midBar >= 1 across multiple samples)
+            if(rightCnt>=5 && tl && !bl) {
+              digit="9";
+            } else if(leftCnt>=5 && botBar>=2) {
+              digit="6";
+            } else if(leftCnt>=5 && !botBar) {
+              digit="4";
+            } else if(tl && br && !tr && leftCnt<5) {
+              digit="5";
+            } else if(tr && bl) {
+              digit="2";
+            } else {
+              digit="0";
+            }
           }
 
-          console.log(`  seg x${seg.s}-${seg.e} w=${sw} top=${topBar} mid=${midBar} bot=${botBar} L=${leftCnt} R=${rightCnt} tl=${tl} bl=${bl} tr=${tr} br=${br} d=${density.toFixed(2)} → ${digit}`);
+          console.log(`  seg x${seg.s}-${seg.e} w=${sw} top=${topBar} mb1=${mb1} mb2=${mb2} mb3=${mb3} midBar=${midBar} bot=${botBar} L=${leftCnt} R=${rightCnt} tl=${tl} bl=${bl} tr=${tr} br=${br} d=${density.toFixed(2)} → ${digit}`);
           numStr+=digit;
         }
 
