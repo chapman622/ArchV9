@@ -480,26 +480,35 @@
           } else if(density>=0.44) {
             // Very dense = 8
             digit="8";
-          } else if(midBar===0) {
-            // No true mid bar (hollow at all 3 sample points) = 0
-            // This catches 0 which has sides but hollow centre
+          } else if(density<=0.36 && tl && bl && tr && br) {
+            // Low density, all 4 corners filled = 0 (hollow oval)
+            // 0: d~0.35, balanced L=4 R=4, all corners
+            // This must come BEFORE other mid-bar checks
             digit="0";
           } else if(midBarMax<=1) {
             // Weak mid signal — 2 or 3
-            // 2: no bottom-right corner; 3: has bottom-right
+            // 3: has bottom-right corner; 2: no bottom-right
             digit = br ? "3" : "2";
           } else {
-            // Strong mid bar (midBar >= 1 across multiple samples)
+            // Strong mid bar
             if(rightCnt>=5 && tl && !bl) {
+              // Strong right side, top-left corner, no bot-left = 9
               digit="9";
             } else if(leftCnt>=5 && botBar>=2) {
+              // Strong left, full bottom bar = 6
               digit="6";
-            } else if(leftCnt>=5 && !botBar) {
+            } else if(leftCnt>=5 && botBar<=1) {
+              // Strong left, weak/no bottom bar = 4
               digit="4";
-            } else if(tl && br && !tr && leftCnt<5) {
+            } else if(tl && br && !tr) {
+              // Top-left + bot-right, no top-right = 5
               digit="5";
             } else if(tr && bl) {
+              // Top-right + bot-left = 2
               digit="2";
+            } else if(tl && br && tr && bl) {
+              // All corners but lower density = 3 (open left side)
+              digit="3";
             } else {
               digit="0";
             }
