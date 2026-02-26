@@ -477,18 +477,27 @@
           } else if(topBar>=3 && midBarMax<=1 && botBar<=1) {
             // Strong top, no mid anywhere, no bot = 7
             digit="7";
+          } else if(density<=0.36 && tl && bl && tr && br) {
+            // Low density, all 4 corners filled = 0 (hollow oval)
+            // Must come BEFORE density>=0.44 check since 0 is hollow
+            digit="0";
+          } else if(tl && br && !tr && topBar>=3 && leftCnt>=4) {
+            // Strong top bar, top-left+bot-right, no top-right, strong left = 5
+            // 5 signature: top=4, tl=true, br=true, tr=false, L=5
+            // Check BEFORE density since 5 can be dense
+            digit="5";
           } else if(density>=0.44) {
             // Very dense = 8
             digit="8";
-          } else if(density<=0.36 && tl && bl && tr && br) {
-            // Low density, all 4 corners filled = 0 (hollow oval)
-            // 0: d~0.35, balanced L=4 R=4, all corners
-            // This must come BEFORE other mid-bar checks
-            digit="0";
           } else if(midBarMax<=1) {
             // Weak mid signal — 2 or 3
-            // 3: has bottom-right corner; 2: no bottom-right
-            digit = br ? "3" : "2";
+            // 3: right-heavy (R>=4, L<=3) with both top corners
+            // 2: left-leaning, no bottom-right
+            if(rightCnt>=4 && leftCnt<=3 && tr && br) {
+              digit="3";
+            } else {
+              digit = br ? "3" : "2";
+            }
           } else {
             // Strong mid bar
             if(rightCnt>=5 && tl && !bl) {
@@ -500,15 +509,12 @@
             } else if(leftCnt>=5 && botBar<=1) {
               // Strong left, weak/no bottom bar = 4
               digit="4";
-            } else if(tl && br && !tr) {
-              // Top-left + bot-right, no top-right = 5
-              digit="5";
+            } else if(rightCnt>=4 && leftCnt<=3) {
+              // Right-heavy with mid bar = 3
+              digit="3";
             } else if(tr && bl) {
               // Top-right + bot-left = 2
               digit="2";
-            } else if(tl && br && tr && bl) {
-              // All corners but lower density = 3 (open left side)
-              digit="3";
             } else {
               digit="0";
             }
